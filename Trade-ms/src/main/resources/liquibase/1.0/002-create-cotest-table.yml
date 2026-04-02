@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-contest
+      author: senan
+      changes:
+        - createTable:
+            tableName: contest
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  defaultValue: 'REGISTRATION'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_month
+                  type: VARCHAR(20)

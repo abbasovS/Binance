@@ -1,0 +1,42 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USER:}
+    password: ${DB_PASS:}
+    driver-class-name: org.postgresql.Driver
+
+  liquibase:
+    change-log: classpath:liquibase/changelog-master.yml
+    enabled: true
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+
+server:
+  port: 8083
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics
+  endpoint:
+    health:
+      show-details: always
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  traces-sample-rate: 0.1
+  logging:
+    minimum-breadcrumb-level: info
+    minimum-event-level: error
+
+binance:
+  api:
+    url: https://data-api.binance.vision/api/v3

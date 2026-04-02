@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-withdrawals
+      author: senan
+      changes:
+        - createTable:
+            tableName: withdrawals
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_withdrawal_user
+                    references: users(id)
+              - column:
+                  name: amount
+                  type: DECIMAL(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wallet_address
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  defaultValue: 'PENDING'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: request_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: processed_date
+                  type: TIMESTAMP

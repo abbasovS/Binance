@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: senan
+      changes:
+        - createTable:
+            tableName: source_stats
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: source_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+              - column:
+                  name: average_impact
+                  type: DOUBLE
+
+              - column:
+                  name: news_count
+                  type: INT
+                  defaultValueNumeric: 0

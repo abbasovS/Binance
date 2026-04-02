@@ -1,0 +1,79 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-traders
+      author: senan
+      changes:
+        - createTable:
+            tableName: traders
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    referencedTableName: users
+                    referencedColumnNames: id
+                    foreignKeyName: fk_trader_user
+              - column:
+                  name: symbol
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: side
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: entry_price
+                  type: NUMERIC(19,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: margin
+                  type: NUMERIC(19,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: close_price
+                  type: NUMERIC(19,8)
+              - column:
+                  name: leverage
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: liquidation_price
+                  type: NUMERIC(19,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: take_profit
+                  type: NUMERIC(19,8)
+              - column:
+                  name: stop_loss
+                  type: NUMERIC(19,8)
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pnl
+                  type: NUMERIC(19,8)
+                  defaultValueNumeric: 0
+              - column:
+                  name: open_time
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: close_time
+                  type: TIMESTAMP

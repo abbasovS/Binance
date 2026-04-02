@@ -1,0 +1,81 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: news-ms
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USER:}
+    password: ${DB_PASS:}
+
+  liquibase:
+    change-log: classpath:liquibase/changelog-master.yml
+    enabled: true
+
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8082}
+
+ai:
+  api:
+    key: ${AI_API_KEY:}
+    url: ${AI_API_URL:}
+
+services:
+  price-ms:
+    url: ${PRICE_SERVICE_URL:http://localhost:8083}
+
+
+cryptopanic:
+  api:
+    url: https://cryptopanic.com/api/developer/v2/posts/
+    token: ${CRYPTO_PANIC_TOKEN:}
+    macro-rate: 3600000
+    general-rate: 3600000
+
+logging:
+  level:
+    com.example.newsms: INFO  # DEBUG əvəzinə INFO və doğru paket adı
+    org.springframework.web: INFO
+    feign: INFO               # DEBUG əvəzinə INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics
+  endpoint:
+    health:
+      show-details: always
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  traces-sample-rate: 0.1     # 1.0 əvəzinə 10% (0.1)
+  logging:
+    minimum-breadcrumb-level: info
+    minimum-event-level: error
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 3000 # Bağlantı üçün 3 saniyə gözlə
+        readTimeout: 5000    # Datanı  üçün 5 saniyə gözlə
+  circuitbreaker:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      price-ms: # @FeignClient(name = "price-ms") ilə eyni adda olmalıdır
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3

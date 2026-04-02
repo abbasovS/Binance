@@ -1,0 +1,83 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: senan
+      changes:
+        - createTable:
+            tableName: news
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: original_title
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_url
+                  type: VARCHAR(500)
+                  constraints:
+                    unique: true
+                    nullable: false
+              - column:
+                  name: source_name
+                  type: VARCHAR(255)
+              - column:
+                  name: summary_en
+                  type: TEXT
+              - column:
+                  name: summary_az
+                  type: TEXT
+              - column:
+                  name: sentiment
+                  type: VARCHAR(20)
+              - column:
+                  name: type
+                  type: VARCHAR(20)
+              - column:
+                  name: symbol
+                  type: VARCHAR(20)
+              - column:
+                  name: is_global
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+              - column:
+                  name: price_at_release
+                  type: DOUBLE
+              - column:
+                  name: price_after1h
+                  type: DOUBLE
+              - column:
+                  name: price_after4h
+                  type: DOUBLE
+              - column:
+                  name: impact_percentage
+                  type: DOUBLE
+              - column:
+                  name: ai_rating
+                  type: DOUBLE
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: published_at
+                  type: TIMESTAMP
+
+        - createIndex:
+            indexName: idx_news_symbol
+            tableName: news
+            columns:
+              - column:
+                  name: symbol
+        - createIndex:
+            indexName: idx_news_created_at
+            tableName: news
+            columns:
+              - column:
+                  name: created_at

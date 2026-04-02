@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-users
+      author: senan
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: username
+                  type: VARCHAR(100)
+              - column:
+                  name: email
+                  type: VARCHAR(100)
+              - column:
+                  name: last_joined_month
+                  type: VARCHAR(100)
+              - column:
+                  name: virtual_balance
+                  type: DECIMAL(19,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: frozen_balance
+                  type: DECIMAL(19, 2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: real_reward_balance
+                  type: DECIMAL(19, 2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: user_rank
+                  type: VARCHAR(30)
+              - column:
+                  name: premium
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: subscription_end_date
+                  type: TIMESTAMP

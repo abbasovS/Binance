@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: senan
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false

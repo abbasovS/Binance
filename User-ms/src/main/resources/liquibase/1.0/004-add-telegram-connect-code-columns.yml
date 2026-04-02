@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4
+      author: codex
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: telegram_connect_code
+                  type: VARCHAR(100)
+              - column:
+                  name: telegram_connect_code_created_at
+                  type: TIMESTAMP

@@ -1,0 +1,9 @@
+
+POST http://localhost:8085/api/users/create
+Content-Type: application/json
+
+{
+"username": "senan",
+  "isPremium": true
+}
+

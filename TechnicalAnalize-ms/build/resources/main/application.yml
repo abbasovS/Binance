@@ -1,0 +1,10 @@
+server:
+  port: 8086
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:8493956664:AAFbljP955hqfsLAo5JU1dMW7XJGSBv0IX0}
+
+user:
+  service:
+    url: http://localhost:8082

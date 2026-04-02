@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/1.0/001-create-watchlist-table.yml

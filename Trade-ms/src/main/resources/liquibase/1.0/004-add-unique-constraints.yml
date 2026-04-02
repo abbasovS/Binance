@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-add-unique-constraints-to-users
+      author: senan
+      changes:
+        - addUniqueConstraint:
+            columnNames: username
+            constraintName: uk_users_username
+            tableName: users
+        - addUniqueConstraint:
+            columnNames: email
+            constraintName: uk_users_email
+            tableName: users

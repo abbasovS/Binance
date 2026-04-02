@@ -1,0 +1,51 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: news-ms
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5435/news_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+
+  liquibase:
+    change-log: classpath:liquibase/changelog-master.yml
+    enabled: true
+
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8082}
+
+ai:
+  api:
+    key: ${AI_API_KEY}
+    url: ${AI_API_URL}
+
+services:
+  price-ms:
+    url: ${PRICE_SERVICE_URL:http://localhost:8083}
+
+
+logging:
+  level:
+    com.yourproject.newsms: DEBUG
+    org.springframework.web: INFO
+    feign: DEBUG
+
+
+sentry:
+  dsn: ${SENTRY_DSN}
+  traces-sample-rate: 1.0
+
+cryptopanic:
+  api:
+    url: https://cryptopanic.com/api/developer/v2/posts/
+    token: ${CRYPTO_PANIC_TOKEN}
+    macro-rate: 3600000
+    general-rate: 3600000

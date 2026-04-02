@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+description = 'TechnicalAnalize-ms'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation('org.telegram:telegrambots-spring-boot-starter:6.8.0') {
+        exclude group: 'org.glassfish.grizzly', module: 'grizzly-http'
+        exclude group: 'org.glassfish.grizzly', module: 'grizzly-framework'
+        exclude group: 'org.glassfish.grizzly', module: 'grizzly-http-server'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:7.3.0'
+    implementation 'org.ta4j:ta4j-core:0.15'
+    implementation 'org.jfree:jfreechart:1.5.5'
+    implementation 'commons-io:commons-io:2.17.0'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+    implementation 'org.json:json:20231013'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

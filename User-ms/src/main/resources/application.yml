@@ -1,0 +1,63 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:user-db}:${DB_PORT:5432}/users_db
+    username: ${DB_USERNAME:${DB_USER:postgres}}
+    password: ${DB_PASSWORD:${DB_PASS:postgres}}
+    driver-class-name: org.postgresql.Driver
+
+  liquibase:
+    change-log: classpath:liquibase/changelog-master.yml
+    enabled: true
+
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER:kafka:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: notif-group
+      properties:
+        spring.json.trusted.packages: "*"
+
+server:
+  port: 8082
+
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
+    username: ${TELEGRAM_BOT_USERNAME:}
+
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  traces-sample-rate: 0.1
+  logging:
+    minimum-breadcrumb-level: info
+    minimum-event-level: error
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  secret: ${SECRET_KEY:}
+
+google:
+  client:
+    id: "8653359311-tu5l87kp2caq784hhj3omfibln22ldeu.apps.googleusercontent.com"

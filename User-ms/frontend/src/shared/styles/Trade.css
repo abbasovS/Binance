@@ -1,0 +1,117 @@
+/* trade.css - Institutional Minimalist Version */
+
+.arena-portal-wrapper {
+    position: relative;
+    width: 100%;
+    height: 180px; /* Hündürlüyü bir az azaltdıq ki, daha kompakt olsun */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+    z-index: 10;
+}
+
+.arena-core {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arena-core:hover {
+    transform: scale(1.02);
+}
+
+/* Mükafat parıltısı - Sarıdan təmiz göy/gümüşü keçidə */
+.arena-glow {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    /* Bahalı "Steel Blue" parıltı */
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 75%);
+    border-radius: 50%;
+    filter: blur(15px);
+    animation: arena-breathe 4s ease-in-out infinite alternate;
+}
+
+@keyframes arena-breathe {
+    0% { transform: scale(1); opacity: 0.3; }
+    100% { transform: scale(1.3); opacity: 0.6; }
+}
+
+/* Liderlik Halqası - Daha incə və polad rəngli */
+.arena-ring-gold {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border: 1px solid transparent;
+    /* İncə gümüşü/göy xətt */
+    border-top: 1px solid rgba(96, 165, 250, 0.4);
+    border-bottom: 1px solid rgba(16, 185, 129, 0.3); /* Çox yüngül yaşıl toxunuş */
+    border-radius: 50%;
+    animation: arena-spin 8s linear infinite;
+}
+
+.arena-ring-inner {
+    position: absolute;
+    width: 85px;
+    height: 85px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 50%;
+    /* Daxili halqa artıq dönmür, sabit qalır ki, ciddi görünsün */
+}
+
+@keyframes arena-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.arena-label {
+    z-index: 10;
+    text-align: center;
+}
+
+.arena-title {
+    color: #f8fafc;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    /* Shadow əvəzinə təmiz font */
+}
+
+.arena-subtitle {
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    /* Arxa fonu sildik, daha təmiz */
+}
+
+/* Sidebar Konteyner - Daha "Bahalı" Border */
+.sidebar-unified-container {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 20px; /* Künclər 24-dən 20-yə salındı */
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent);
+    margin: 0;
+}

@@ -1,0 +1,16 @@
+databaseChangeLog:
+
+  - include:
+      file: liquibase/1.0/001-create-user-table.yml
+  - include:
+      file: liquibase/1.0/002-create-cotest-table.yml
+  - include:
+      file: liquibase/1.0/003-create-trade-table.yml
+  - include:
+      file: liquibase/1.0/004-add-unique-constraints.yml
+  - include:
+      file: liquibase/1.0/005-create-withdrawal-table.yml
+  - include:
+      file: liquibase/1.0/06-add-global-column.yml
+  - include:
+      file: liquibase/1.0/07-added-terms.yml

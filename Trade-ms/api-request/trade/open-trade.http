@@ -1,0 +1,13 @@
+POST http://localhost:8085/api/trades/user/open
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "symbol": "BTCUSDT",
+  "side": "LONG",
+  "margin": 50.0,
+  "leverage": 10,
+  "takeProfit": 68500.0,
+  "stopLoss": 65000.0,
+  "targetPrice": 67000.0
+}

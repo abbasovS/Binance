@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20231218-1
+      author: senan
+      changes:
+        - createTable:
+            tableName: watchlist
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: symbol
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+                    # DİQQƏT: unique: true BURADAN SİLİNDİ! (Hər kəs eyni coini izləyə bilər)
+              - column:
+                  name: user_email # YENİ ƏLAVƏ EDİLDİ
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 20231218-2
+      author: Senan
+      changes:
+        - createTable:
+            tableName: alerts_price
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: symbol
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_email # YENİ ƏLAVƏ EDİLDİ (chat_id-nin əvəzinə)
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_price
+                  type: numeric(18, 8)
+              - column:
+                  name: side
+                  type: varchar(10)
+              - column:
+                  name: is_triggered
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

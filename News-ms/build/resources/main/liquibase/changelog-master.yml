@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/1.0/001-create-news-table.yml
+  - include:
+      file: liquibase/1.0/002-create-source-table.yml

@@ -1,0 +1,69 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 30s
+        websocket:
+          max-frame-payload-length: 1048576
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+      routes:
+        - id: User-ms
+          uri: ${USER_MS_URL:http://user-ms:8082}
+          predicates:
+            - Path=/api/user/**, /api/admin/**, /api/telegram/**
+
+        - id: Trade-ms
+          uri: ${TRADE_MS_URL:http://trade-ms:8085}
+          predicates:
+            - Path=/api/users/**, /api/trades/user/**, /api/withdraw/**
+
+        - id: Price-ms
+          uri: ${PRICE_MS_URL:http://price-ms:8083}
+          predicates:
+            - Path=/api/crypto/**, /api/market/**, /ws-crypto/**
+          # 2. SEHRLİ ƏLAVƏ: WebSocket-i bu route üzərində aktiv edirik
+          metadata:
+            websocket-routing-enabled: true
+
+        - id: News-ms
+          uri: ${NEWS_MS_URL:http://news-ms:8081}
+          predicates:
+            - Path=/api/news/**
+
+        - id: Technical-ms
+          uri: ${TECHNICAL_MS_URL:http://technical-ms:8086}
+          predicates:
+            - Path=/analysis/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics
+  endpoint:
+    health:
+      show-details: always
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  traces-sample-rate: 0.1
