@@ -3,10 +3,15 @@ package com.example.userms.service;
 import com.example.userms.dto.UserRegistrationDto;
 import com.example.userms.dto.UserRegistrationEvent;
 import com.example.userms.dto.request.GoogleLoginRequest;
+import com.example.userms.dto.request.UserUpdateRequest;
 import com.example.userms.dto.response.TelegramConnectInitResponse;
 import com.example.userms.dto.response.TelegramStatusResponse;
-import com.example.userms.dto.request.UserUpdateRequest;
-import com.example.userms.exception.*;
+import com.example.userms.dto.response.UserProfileResponse;
+import com.example.userms.exception.EmailAlreadyExistsException;
+import com.example.userms.exception.PhoneNumberAlreadyExistsException;
+import com.example.userms.exception.UserNotFoundException;
+import com.example.userms.exception.WrongCodeException;
+import com.example.userms.exception.WrongPasswordException;
 import com.example.userms.model.UserEntity;
 import com.example.userms.repository.UserRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -17,6 +22,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -24,7 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,11 +54,8 @@ public class UserService {
     @Value("${google.client.id}")
     private String googleClientId;
 
-
-
     @Transactional
     public void createUser(UserRegistrationDto dto) {
-
         String email = dto.getEmail().trim().toLowerCase();
         String normalizedPhone = normalizePhone(dto.getPhoneNumber());
 
@@ -65,8 +71,6 @@ public class UserService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setPhoneNumber(normalizedPhone);
-
-        // SENIOR DÜZƏLİŞİ 1: Default dəyərləri mütləq set edirik
         user.setRole("ROLE_USER");
         user.setActive(true);
         user.setPremium(false);
@@ -77,15 +81,13 @@ public class UserService {
 
         try {
             userRepository.saveAndFlush(user);
-        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
-            // SENIOR DÜZƏLİŞİ 2: Birbaşa Baza xətasını tuturuq
+        } catch (DataIntegrityViolationException ex) {
             log.error("Database integrity violation while saving user: {}", email, ex);
             throw new RuntimeException("Məlumat bazasına yazılarkən kritik xəta baş verdi. Sahələri yoxlayın.");
         }
 
         UserRegistrationEvent event = new UserRegistrationEvent(user.getEmail(), code, user.getPhoneNumber());
         kafkaTemplate.send("registration-topic", event);
-
         log.info("User created successfully: {}", email);
     }
 
@@ -105,84 +107,78 @@ public class UserService {
         }
     }
 
-
-
     public String login(String email, String password) {
-        try {
-            String normalizedEmail = email.trim().toLowerCase();
-            UserEntity user = userRepository.findByEmail(normalizedEmail)
-                    .orElseThrow(() -> new RuntimeException("İstifadəçi tapılmadı"));
+        String normalizedEmail = email.trim().toLowerCase();
+        UserEntity user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new RuntimeException("İstifadəçi tapılmadı"));
 
-            if (!passwordEncoder.matches(password, user.getPassword())) {
-                throw new RuntimeException("Şifrə yanlışdır");
-            }
-
-            if (!user.isEmailVerified()) {
-                throw new RuntimeException("Email təsdiqlənməyib");
-            }
-
-            // --- YENİ ƏLAVƏ EDİLƏN HİSSƏ (BLOKLANMA YOXLAMASI) ---
-            if (!user.isActive()) {
-                throw new RuntimeException("Sizin hesabınız admin tərəfindən bloklanıb!");
-            }
-            // ------------------------------------------------------
-
-            return jwtService.generateToken(user.getEmail(), user.getRole());
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Şifrə yanlışdır");
         }
+
+        if (!user.isEmailVerified()) {
+            throw new RuntimeException("Email təsdiqlənməyib");
+        }
+
+        if (!user.isActive()) {
+            throw new RuntimeException("Sizin hesabınız admin tərəfindən bloklanıb!");
+        }
+
+        return jwtService.generateToken(user.getEmail(), user.getRole());
     }
 
+    @Transactional
+    public void updateUser(String email, UserUpdateRequest request) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("not found"));
 
-@Transactional
-    public void updateUser(String email,  UserUpdateRequest request) {
-        UserEntity user=userRepository.findByEmail(email)
-                .orElseThrow(()-> new UserNotFoundException("not found"));
-
-        if(!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())){
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             throw new WrongPasswordException("Cari sifre yanlisdir");
         }
+
         if (request.getNewEmail() != null && !request.getNewEmail().equals(user.getEmail())) {
-            if (userRepository.existsByEmail(request.getNewEmail())) {
+            String normalizedNewEmail = request.getNewEmail().trim().toLowerCase();
+            if (userRepository.existsByEmail(normalizedNewEmail)) {
                 throw new EmailAlreadyExistsException("Bu email artıq istifadə olunur!");
             }
-            user.setEmail(request.getNewEmail());
+            user.setEmail(normalizedNewEmail);
             user.setEmailVerified(false);
         }
 
         if (request.getNewPhoneNumber() != null) {
-            if (userRepository.existsByPhoneNumber(request.getNewPhoneNumber())) {
+            String normalizedPhone = normalizePhone(request.getNewPhoneNumber());
+            if (userRepository.existsByPhoneNumber(normalizedPhone)) {
                 throw new PhoneNumberAlreadyExistsException("Bu telefon nömrəsi artıq istifadə olunur!");
             }
-            user.setPhoneNumber(request.getNewPhoneNumber());
+            user.setPhoneNumber(normalizedPhone);
         }
 
-        if (request.getNewPassword() != null) {
+        if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         }
+
         userRepository.save(user);
-
         log.info("User updated");
-
     }
+
     @Transactional
     public void deleteUser(String email) {
-        UserEntity user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("not found"));
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("not found"));
         user.setActive(false);
         userRepository.save(user);
 
         kafkaTemplateObject.send("user-status-topic", email + ":INACTIVE");
-
         log.info("User deleted and Kafka event sent");
     }
 
-
-    public UserEntity getMyProfile() {
+    public UserProfileResponse getMyProfile() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        return userRepository.findByEmail(email)
+        UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("İstifadəçi tapılmadı!"));
+
+        return mapToUserProfileResponse(user);
     }
 
     @Transactional
@@ -229,35 +225,36 @@ public class UserService {
                 .build();
     }
 
-
     @Transactional
+    @SuppressWarnings("unchecked")
     public void handleTelegramWebhook(Map<String, Object> update) {
         try {
             Map<String, Object> message = (Map<String, Object>) update.get("message");
-            if (message == null) return;
+            if (message == null) {
+                return;
+            }
 
             String text = (String) message.get("text");
-            if (text == null || !text.startsWith("/start ")) return;
+            if (text == null || !text.startsWith("/start ")) {
+                return;
+            }
 
-            // Kodu text-dən ayırırıq
             String code = text.replace("/start ", "").trim();
 
             Map<String, Object> chat = (Map<String, Object>) message.get("chat");
             String chatId = String.valueOf(chat.get("id"));
 
-            // Kodu bazada axtarırıq və istifadəçini dərhal bağlayırıq
             userRepository.findByTelegramConnectCode(code).ifPresent(user -> {
                 user.setTelegramChatId(chatId);
-                user.setTelegramConnectCode(null); // Kodu istifadə etdik deyə silirik
+                user.setTelegramConnectCode(null);
                 user.setTelegramConnectCodeCreatedAt(null);
                 userRepository.save(user);
                 log.info("✅ WEBHOOK UĞURLU: İstifadəçi {} Telegram-a bağlandı! ChatID: {}", user.getEmail(), chatId);
             });
         } catch (Exception e) {
-            log.error("🔥 Webhook xətası: {}", e.getMessage());
+            log.error("🔥 Webhook xətası", e);
         }
     }
-
 
     public TelegramStatusResponse confirmTelegramConnection(String email) {
         return getTelegramStatus(email);
@@ -280,8 +277,11 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public List<UserEntity> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserProfileResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(this::mapToUserProfileResponse)
+                .toList();
     }
 
     @Transactional
@@ -296,7 +296,6 @@ public class UserService {
         user.setActive(!user.isActive());
         userRepository.save(user);
 
-        // KAFKA EVENT (Aktiv və İnaktiv olmasını Trade-ms-ə bildiririk)
         String statusAction = user.isActive() ? "ACTIVE" : "INACTIVE";
         kafkaTemplateObject.send("user-status-topic", user.getEmail() + ":" + statusAction);
 
@@ -314,8 +313,7 @@ public class UserService {
 
         user.setRole(newRole);
         userRepository.save(user);
-        log.info("Admin {} tərəfindən {} istifadəçisinə {} rolu verildi.",
-                adminEmail, user.getEmail(), newRole);
+        log.info("Admin {} tərəfindən {} istifadəçisinə {} rolu verildi.", adminEmail, user.getEmail(), newRole);
     }
 
     @Transactional
@@ -325,88 +323,98 @@ public class UserService {
 
         user.setPremium(!user.isPremium());
         userRepository.save(user);
-
-        // KAFKA EVENT
-        String action = user.isPremium() ? "PREMIUM_ADD" : "PREMIUM_REMOVE";
-        kafkaTemplateObject.send("user-status-topic", user.getEmail() + ":" + action);
     }
+
     @Transactional
     public void controlTournament(String action) {
-        if ("start".equalsIgnoreCase(action)) {
-            log.info("🏆 ADMIN ƏMRİ: Qlobal Paper Trading Turniri Başladıldı!");
-            kafkaTemplateObject.send("user-status-topic", "GLOBAL:TOURNAMENT_START");
-        } else if ("stop".equalsIgnoreCase(action)) {
-            log.info("🛑 ADMIN ƏMRİ: Qlobal Paper Trading Turniri Donduruldu / Bitirildi!");
-            kafkaTemplateObject.send("user-status-topic", "GLOBAL:TOURNAMENT_STOP");
-        } else {
-            throw new IllegalArgumentException("Naməlum əmr: " + action);
+        String normalizedAction = action == null ? "" : action.trim().toLowerCase();
+
+        if (!normalizedAction.equals("start") && !normalizedAction.equals("stop")) {
+            throw new RuntimeException("Yalnız 'start' və ya 'stop' əmri qəbul edilir");
         }
+
+        kafkaTemplateObject.send("tournament-control-topic", normalizedAction.toUpperCase());
     }
-
-
 
     @Transactional
     public void toggleTournamentParticipation(UUID userId) {
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("İstifadəçi tapılmadı"));
+                .orElseThrow(() -> new UserNotFoundException("İstifadəçi tapılmadı"));
+
         user.setInTournament(!user.isInTournament());
         userRepository.save(user);
-
-        String action = user.isInTournament() ? "ARENA_ADD" : "ARENA_REMOVE";
-        kafkaTemplateObject.send("user-status-topic", user.getEmail() + ":" + action);
     }
 
-    private String normalizePhone(String phone) {
-        if (phone == null) return null;
-
-        String cleaned = phone.replaceAll("\\s+", "");
-
-        if (!cleaned.startsWith("+")) {
-            cleaned = "+" + cleaned;
-        }
-
-        return cleaned;
-    }
     public String googleLogin(GoogleLoginRequest request) {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                    new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
+                    new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance()
+            )
+                    .setAudience(List.of(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(request.getIdToken());
-
-            if (idToken != null) {
-                GoogleIdToken.Payload payload = idToken.getPayload();
-                String email = payload.getEmail().toLowerCase();
-
-                UserEntity user = userRepository.findByEmail(email).orElse(null);
-
-                if (user == null) {
-                    // YENİ İSTİFADƏÇİ (SIGN UP)
-                    user = new UserEntity();
-                    user.setEmail(email);
-                    user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Random şifrə
-                    user.setRole("ROLE_USER");
-                    user.setActive(true);
-                    user.setPremium(false);
-                    user.setEmailVerified(true); // Google onsuz da təsdiqlidir
-                    userRepository.save(user);
-                } else if (!user.isActive()) {
-                    // BLOKLANMIŞ İSTİFADƏÇİ YOXLAMASI
-                    throw new RuntimeException("Sizin hesabınız admin tərəfindən bloklanıb!");
-                }
-
-                // JWT Token yaradırıq (Sənin sistemində login() necə işləyirsə, eynisi)
-                return jwtService.generateToken(user.getEmail(), user.getRole());
-
-            } else {
-                throw new RuntimeException("Invalid Google token!");
+            String googleToken = request.getCredential();
+            if (googleToken == null || googleToken.isBlank()) {
+                googleToken = request.getIdToken();
             }
+
+            if (googleToken == null || googleToken.isBlank()) {
+                throw new RuntimeException("Google credential göndərilməyib");
+            }
+
+            GoogleIdToken idToken = verifier.verify(googleToken);
+            if (idToken == null) {
+                throw new RuntimeException("Google token etibarsızdır");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail().trim().toLowerCase();
+
+            UserEntity user = userRepository.findByEmail(email)
+                    .orElseGet(() -> {
+                        UserEntity newUser = new UserEntity();
+                        newUser.setEmail(email);
+                        newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                        newUser.setPhoneNumber("google-user-" + UUID.randomUUID());
+                        newUser.setRole("ROLE_USER");
+                        newUser.setActive(true);
+                        newUser.setPremium(false);
+                        newUser.setEmailVerified(true);
+                        return userRepository.save(newUser);
+                    });
+
+            if (!user.isActive()) {
+                throw new RuntimeException("Sizin hesabınız admin tərəfindən bloklanıb!");
+            }
+
+            return jwtService.generateToken(user.getEmail(), user.getRole());
         } catch (Exception e) {
-            log.error("Google authentication failed", e);
-            throw new RuntimeException("Google authentication failed!");
+            log.error("Google login failed", e);
+            throw new RuntimeException("Google login zamanı xəta baş verdi");
         }
     }
 
+    private UserProfileResponse mapToUserProfileResponse(UserEntity user) {
+        return UserProfileResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .telegramChatId(user.getTelegramChatId())
+                .premium(user.isPremium())
+                .inTournament(user.isInTournament())
+                .emailVerified(user.isEmailVerified())
+                .phoneVerified(user.isPhoneVerified())
+                .active(user.isActive())
+                .role(user.getRole())
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    private String normalizePhone(String phoneNumber) {
+        if (phoneNumber == null) {
+            return null;
+        }
+        return phoneNumber.replaceAll("\\s+", "").trim();
+    }
 }

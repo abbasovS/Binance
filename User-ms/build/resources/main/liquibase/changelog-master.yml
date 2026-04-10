@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/1.0/001-create-user-table.yml
+  - include:
+      file: liquibase/1.0/002-create-update-table.yml
+  - include:
+      file: liquibase/1.0/003-add-telegram-chat-id-column.yml
+  - include:
+      file: liquibase/1.0/004-add-telegram-connect-code-columns.yml
+  - include:
+     file: classpath:liquibase/1.0/005-add-role-column.yml
+  - include:
+     file: classpath:liquibase/1.0/006-add-premium-column.yml
+  - include:
+      file: classpath:liquibase/1.0/007-add-tournament-column.yml

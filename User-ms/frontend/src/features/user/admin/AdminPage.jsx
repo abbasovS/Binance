@@ -1,334 +1,505 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // YENİ: Toast import edildi
+import toast from 'react-hot-toast';
 import { adminApi } from '../../../api';
 
-const AdminPage = () => {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState(null);
-    const [broadcastText, setBroadcastText] = useState("");
+const cardStyle = {
+    background: 'linear-gradient(180deg, rgba(17,24,39,0.96) 0%, rgba(10,14,24,0.98) 100%)',
+    border: '1px solid rgba(148,163,184,0.14)',
+    borderRadius: '20px',
+    padding: '24px',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.35)'
+};
 
+function AdminPage() {
     const navigate = useNavigate();
 
-    // Datanı çəkən funksiyanı useCallback ilə əhatə edirik
-    const fetchAdminData = useCallback(async () => {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [systemMessage, setSystemMessage] = useState('');
+    const [broadcastForm, setBroadcastForm] = useState({
+        title: '',
+        message: '',
+        type: 'SYSTEM',
+        alsoPublishAsGlobalMessage: true
+    });
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [userForm, setUserForm] = useState({
+        title: '',
+        message: '',
+        type: 'INFO'
+    });
+
+    const loadUsers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                navigate('/');
-                return;
-            }
-
             setLoading(true);
-
-            const [dashRes, usersRes] = await Promise.all([
-                adminApi.getDashboard().catch(() => ({ data: 'SYSTEM ONLINE' })),
-                adminApi.getUsers().catch(() => ({ data: [] })) // <--- BUNU ƏLAVƏ ETMƏLİSƏN
-            ]);
-            const safeMessage = typeof dashRes.data === 'string' ? dashRes.data : JSON.stringify(dashRes.data);
-            setMessage(safeMessage);
-
-            const safeUsers = Array.isArray(usersRes.data) ? usersRes.data : [];
-            setUsers(safeUsers);
-
+            const res = await adminApi.getUsers();
+            setUsers(res.data || []);
         } catch (err) {
-            console.error("Admin məlumatları çəkilərkən xəta:", err);
-
-            // Əgər istifadəçinin Admin səlahiyyəti yoxdursa (403)
-            if (err.response?.status === 403) {
-                toast.error("Giriş qadağandır! Sizin Admin səlahiyyətiniz yoxdur.");
-                navigate('/');
-            } else {
-                setError(err.response?.data?.message || err.message || "Sistem xətası baş verdi.");
-                toast.error("Sistem xətası baş verdi. Databaza yüklənə bilmir.");
-            }
+            toast.error('Users could not be loaded');
         } finally {
             setLoading(false);
         }
-    }, [navigate]);
+    };
 
     useEffect(() => {
-        fetchAdminData();
-    }, [fetchAdminData]);
+        loadUsers();
+    }, []);
 
-    // --- FUNKSİYALAR ---
+    const stats = useMemo(() => {
+        const total = users.length;
+        const admins = users.filter((u) => u.role === 'ROLE_ADMIN').length;
+        const premium = users.filter((u) => u.premiumUser).length;
+        const active = users.filter((u) => u.active).length;
 
-    // 1. STATUSU DƏYİŞ (Ban/Unban)
-    const handleToggleStatus = async (userId) => {
-        if (!window.confirm("Bu istifadəçinin statusunu dəyişmək istədiyinizə əminsiniz?")) return;
+        return { total, admins, premium, active };
+    }, [users]);
 
-        try {
-            await adminApi.toggleStatus(userId);
-            toast.success("İstifadəçi statusu yeniləndi!");
-            fetchAdminData();
-        } catch (err) {
-            const errorMsg = err.response?.data?.message || err.response?.data || "Status dəyişdirilərkən xəta baş verdi.";
-            toast.error(errorMsg);
-        }
-    };
-
-    // 2. ROLU DƏYİŞ (Admin/User)
-    const handleChangeRole = async (userId, currentRole) => {
-        const newRole = currentRole === 'ROLE_ADMIN' ? 'ROLE_USER' : 'ROLE_ADMIN';
-        if (!window.confirm(`İstifadəçiyə ${newRole} səlahiyyəti verilsin?`)) return;
-
-        try {
-            await adminApi.changeRole(userId, newRole);
-            toast.success(`İstifadəçi rolu ${newRole} olaraq təyin edildi.`);
-            fetchAdminData();
-        } catch (err) {
-            const errorMsg = err.response?.data?.message || err.response?.data || "Rol dəyişdirilərkən xəta baş verdi.";
-            toast.error(errorMsg);
-        }
-    };
-
-    // 3. PREMIUM STATUSUNU DƏYİŞ
-    const handleTogglePremium = async (userId) => {
-        try {
-            await adminApi.togglePremium(userId);
-            toast.success("Premium status uğurla dəyişdirildi.");
-            fetchAdminData();
-        } catch (err) {
-            toast.error("Premium status dəyişdirilərkən xəta baş verdi!");
-        }
-    };
-
-    // 4. TURNİRƏ İSTİFADƏÇİ ƏLAVƏ ET / ÇIXAR
-    const handleToggleTournament = async (userId) => {
-        try {
-            await adminApi.toggleTournament(userId);
-            toast.success("Turnir iştirakı yeniləndi.");
-            fetchAdminData();
-        } catch (err) {
-            toast.error("Turnir statusu dəyişdirilə bilmədi.");
-        }
-    };
-
-    // 5. TURNİR İDARƏETMƏSİ (Başlat/Bitir)
     const handleTournament = async (action) => {
-        if (!window.confirm(`Turniri ${action === 'start' ? 'başlatmaq' : 'bitirmək'} istəyirsiniz?`)) return;
-
         try {
-            await adminApi.controlTournament(action);
-            toast.success(`Turnir uğurla ${action === 'start' ? 'başladıldı' : 'bitirildi'}!`);
+            const res = await adminApi.controlTournament(action);
+            toast.success(res.data || `Tournament ${action} success`);
         } catch (err) {
-            const errorMsg = err.response?.data?.message || err.response?.data || "Turnir əməliyyatı uğursuz oldu.";
-            toast.error(errorMsg);
+            toast.error(err?.response?.data || 'Tournament action failed');
         }
     };
 
-    // 6. QLOBAL MESAJ GÖNDƏR
-    const handleBroadcast = async () => {
-        if(!broadcastText.trim()) {
-            toast("Mətn xanası boşdur. Mesaj daxil edin.", { icon: '⚠️' });
+    const handleLegacyBroadcast = async () => {
+        if (!systemMessage.trim()) {
+            toast.error('Write a message first');
             return;
         }
 
         try {
-            await adminApi.broadcast(broadcastText);
-            toast.success("Mesaj bütün istifadəçilərə göndərildi!");
-            setBroadcastText("");
+            const res = await adminApi.broadcast(systemMessage.trim());
+            toast.success(res.data || 'Legacy broadcast sent');
+            setSystemMessage('');
         } catch (err) {
-            toast.error("Mesaj göndərilə bilmədi. Server bağlantısını yoxlayın.");
+            toast.error(err?.response?.data || 'Legacy broadcast failed');
         }
     };
 
-    if (error) {
-        return (
-            <div style={{ minHeight: '100vh', background: '#0b0e11', color: '#f84960', padding: '50px', textAlign: 'center' }}>
-                <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
-                <h2 style={{ color: '#fff' }}>Sistem Xətası Baş Verdi!</h2>
-                <p style={{ color: '#848e9c' }}>{error}</p>
-                <button onClick={() => navigate('/')} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '8px', marginTop: '20px', cursor: 'pointer', fontWeight: 'bold' }}>Sistemə Qayıt</button>
-            </div>
-        );
-    }
+    const handleBroadcastNotification = async () => {
+        if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) {
+            toast.error('Title and message are required');
+            return;
+        }
+
+        try {
+            const res = await adminApi.broadcastNotification({
+                title: broadcastForm.title.trim(),
+                message: broadcastForm.message.trim(),
+                type: broadcastForm.type,
+                alsoPublishAsGlobalMessage: broadcastForm.alsoPublishAsGlobalMessage
+            });
+
+            toast.success(res?.data?.message || 'Broadcast notification sent');
+
+            setBroadcastForm({
+                title: '',
+                message: '',
+                type: 'SYSTEM',
+                alsoPublishAsGlobalMessage: true
+            });
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Broadcast notification failed');
+        }
+    };
+
+    const handleUserNotification = async () => {
+        if (!selectedUserId) {
+            toast.error('Select a user');
+            return;
+        }
+
+        if (!userForm.title.trim() || !userForm.message.trim()) {
+            toast.error('Title and message are required');
+            return;
+        }
+
+        try {
+            const res = await adminApi.sendNotificationToUser(selectedUserId, {
+                title: userForm.title.trim(),
+                message: userForm.message.trim(),
+                type: userForm.type
+            });
+
+            toast.success(res.data || 'User notification sent');
+
+            setUserForm({
+                title: '',
+                message: '',
+                type: 'INFO'
+            });
+        } catch (err) {
+            toast.error(err?.response?.data?.message || err?.response?.data || 'User notification failed');
+        }
+    };
+
+    const handleChangeRole = async (userId, currentRole) => {
+        const nextRole = currentRole === 'ROLE_ADMIN' ? 'ROLE_USER' : 'ROLE_ADMIN';
+
+        try {
+            await adminApi.changeRole(userId, nextRole);
+            toast.success(`Role updated to ${nextRole}`);
+            await loadUsers();
+        } catch (err) {
+            toast.error(err?.response?.data || 'Role update failed');
+        }
+    };
+
+    const handleToggleStatus = async (userId) => {
+        try {
+            await adminApi.toggleStatus(userId);
+            toast.success('User status updated');
+            await loadUsers();
+        } catch (err) {
+            toast.error(err?.response?.data || 'Status update failed');
+        }
+    };
+
+    const handleTogglePremium = async (userId) => {
+        try {
+            await adminApi.togglePremium(userId);
+            toast.success('Premium updated');
+            await loadUsers();
+        } catch (err) {
+            toast.error(err?.response?.data || 'Premium update failed');
+        }
+    };
+
+    const handleToggleTournament = async (userId) => {
+        try {
+            await adminApi.toggleTournament(userId);
+            toast.success('Tournament flag updated');
+            await loadUsers();
+        } catch (err) {
+            toast.error(err?.response?.data || 'Tournament flag update failed');
+        }
+    };
 
     return (
-        <div style={{ minHeight: '100vh', background: '#080a0c', color: '#fff', padding: '40px' }}>
-
-            {/* HEADER HİSSƏSİ */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '20px' }}>
-                <div>
-                    <h1 style={{ color: '#fff', fontSize: '36px', margin: '0 0 8px 0', letterSpacing: '-1px' }}>
-                        NEXUS <span style={{ color: '#fcd535' }}>Command Center</span>
-                    </h1>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#02c076', boxShadow: '0 0 10px #02c076', animation: 'pulse 2s infinite' }}></div>
-                        <p style={{ color: '#848e9c', fontSize: '13px', margin: 0, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            {message || 'SYSTEM ONLINE'}
-                        </p>
-                    </div>
-                </div>
-                <button onClick={() => navigate('/')} style={{
-                    background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6',
-                    padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', transition: 'all 0.2s ease', letterSpacing: '0.5px'
-                }} onMouseOver={(e) => { e.target.style.background='rgba(59, 130, 246, 0.2)'; e.target.style.transform='translateY(-2px)'}} onMouseOut={(e) => { e.target.style.background='rgba(59, 130, 246, 0.1)'; e.target.style.transform='translateY(0)'}}>
-                    ← EXIT TERMINAL
-                </button>
-            </div>
-
-            {/* TURNİR VƏ SİSTEM İDARƏETMƏSİ */}
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '40px' }}>
-                <div style={{ flex: 1, background: 'linear-gradient(145deg, #161a1e 0%, #0b0e11 100%)', padding: '25px', borderRadius: '20px', border: '1px solid rgba(252, 213, 53, 0.15)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h4 style={{ margin: 0, color: '#fcd535', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '24px' }}>🏆</span> Tournament Engine
-                        </h4>
-                        <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', color: '#848e9c', fontWeight: 'bold' }}>GLOBAL EVENT</span>
-                    </div>
-                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', lineHeight: '1.5' }}>Paper Trading turnirini başlatmaq və ya dondurmaq üçün idarəetmə paneli.</p>
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                        <button onClick={() => handleTournament('start')} style={{ flex: 1, background: 'linear-gradient(90deg, #02c076 0%, #00a563 100%)', color: '#fff', border: 'none', padding: '14px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 15px rgba(2, 192, 118, 0.3)' }} onMouseOver={(e)=>e.target.style.transform='translateY(-2px)'} onMouseOut={(e)=>e.target.style.transform='translateY(0)'}>INITIATE</button>
-                        <button onClick={() => handleTournament('stop')} style={{ flex: 1, background: 'transparent', color: '#f84960', border: '1px solid rgba(248, 73, 96, 0.5)', padding: '14px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', transition: '0.2s' }} onMouseOver={(e)=>{e.target.style.background='rgba(248, 73, 96, 0.1)'; e.target.style.transform='translateY(-2px)'}} onMouseOut={(e)=>{e.target.style.background='transparent'; e.target.style.transform='translateY(0)'}}>TERMINATE</button>
-                    </div>
-                </div>
-
-                <div style={{ flex: 1, background: 'linear-gradient(145deg, #161a1e 0%, #0b0e11 100%)', padding: '25px', borderRadius: '20px', border: '1px solid rgba(59, 130, 246, 0.15)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                        <span style={{ fontSize: '24px' }}>📢</span>
-                        <h4 style={{ margin: 0, color: '#3b82f6', fontSize: '18px' }}>Global Broadcast</h4>
-                    </div>
-                    <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', lineHeight: '1.5' }}>Bütün istifadəçilərin terminalında görünəcək təcili sistem mesajı göndərin.</p>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <input
-                            value={broadcastText}
-                            onChange={(e) => setBroadcastText(e.target.value)}
-                            placeholder="Mesajı bura yazın..."
-                            style={{ flex: 1, background: '#080a0c', border: '1px solid #2b3139', padding: '14px', borderRadius: '12px', color: '#fff', outline: 'none', fontSize: '14px' }}
-                        />
-                        <button onClick={handleBroadcast} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '0 25px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)' }} onMouseOver={(e)=>e.target.style.transform='translateY(-2px)'} onMouseOut={(e)=>e.target.style.transform='translateY(0)'}>SEND</button>
-                    </div>
-                </div>
-            </div>
-
-            {/* İSTİFADƏÇİLƏRİN SİYAHISI */}
-            <div style={{
-                background: '#12161a', border: '1px solid #2b3139',
-                borderRadius: '20px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.6)'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <div style={{
+            minHeight: '100vh',
+            background: 'radial-gradient(circle at top left, rgba(59,130,246,0.08), transparent 28%), radial-gradient(circle at top right, rgba(168,85,247,0.08), transparent 22%), #060913',
+            color: '#e5e7eb',
+            padding: '32px'
+        }}>
+            <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '20px',
+                    marginBottom: '28px'
+                }}>
                     <div>
-                        <h3 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '22px' }}>User Database</h3>
-                        <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Manage access, roles, tournaments and premium subscriptions.</p>
+                        <div style={{ color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: '8px' }}>
+                            Admin Control Center
+                        </div>
+                        <h1 style={{ margin: 0, fontSize: '34px', color: '#f8fafc' }}>
+                            MockFolio Notifications
+                        </h1>
                     </div>
-                    <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '8px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '800', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                        TOTAL REGISTRATIONS: {users ? users.length : 0}
+
+                    <button
+                        onClick={() => navigate('/')}
+                        style={{
+                            border: '1px solid rgba(148,163,184,0.18)',
+                            background: 'rgba(15,23,42,0.9)',
+                            color: '#e2e8f0',
+                            borderRadius: '12px',
+                            padding: '12px 18px',
+                            cursor: 'pointer',
+                            fontWeight: 700
+                        }}
+                    >
+                        Back to dashboard
+                    </button>
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                    gap: '16px',
+                    marginBottom: '22px'
+                }}>
+                    {[
+                        ['Total Users', stats.total],
+                        ['Admins', stats.admins],
+                        ['Premium', stats.premium],
+                        ['Active', stats.active]
+                    ].map(([label, value]) => (
+                        <div key={label} style={cardStyle}>
+                            <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>{label}</div>
+                            <div style={{ fontSize: '30px', fontWeight: 800 }}>{value}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.1fr 0.9fr',
+                    gap: '18px',
+                    marginBottom: '22px'
+                }}>
+                    <div style={cardStyle}>
+                        <h3 style={{ marginTop: 0, marginBottom: '18px' }}>Broadcast notification</h3>
+
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            <input
+                                value={broadcastForm.title}
+                                onChange={(e) => setBroadcastForm((prev) => ({ ...prev, title: e.target.value }))}
+                                placeholder="Title"
+                                style={inputStyle}
+                            />
+
+                            <textarea
+                                value={broadcastForm.message}
+                                onChange={(e) => setBroadcastForm((prev) => ({ ...prev, message: e.target.value }))}
+                                placeholder="Message"
+                                rows={5}
+                                style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }}
+                            />
+
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <select
+                                    value={broadcastForm.type}
+                                    onChange={(e) => setBroadcastForm((prev) => ({ ...prev, type: e.target.value }))}
+                                    style={inputStyle}
+                                >
+                                    <option value="INFO">INFO</option>
+                                    <option value="SUCCESS">SUCCESS</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="ERROR">ERROR</option>
+                                    <option value="SYSTEM">SYSTEM</option>
+                                </select>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#cbd5e1' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={broadcastForm.alsoPublishAsGlobalMessage}
+                                        onChange={(e) =>
+                                            setBroadcastForm((prev) => ({
+                                                ...prev,
+                                                alsoPublishAsGlobalMessage: e.target.checked
+                                            }))
+                                        }
+                                    />
+                                    Also publish as global banner
+                                </label>
+                            </div>
+
+                            <button onClick={handleBroadcastNotification} style={primaryButtonStyle}>
+                                Send to all users
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={cardStyle}>
+                        <h3 style={{ marginTop: 0, marginBottom: '18px' }}>Tournament & legacy tools</h3>
+
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button onClick={() => handleTournament('start')} style={successButtonStyle}>
+                                    Start tournament
+                                </button>
+                                <button onClick={() => handleTournament('stop')} style={dangerButtonStyle}>
+                                    Stop tournament
+                                </button>
+                            </div>
+
+                            <input
+                                value={systemMessage}
+                                onChange={(e) => setSystemMessage(e.target.value)}
+                                placeholder="Legacy global message"
+                                style={inputStyle}
+                            />
+
+                            <button onClick={handleLegacyBroadcast} style={secondaryButtonStyle}>
+                                Send legacy banner
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '60px', color: '#848e9c', fontSize: '16px', fontWeight: '600' }}>DATABAZA YÜKLƏNİR...</div>
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px', textAlign: 'left' }}>
-                            <thead>
-                            <tr style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Email Address</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Phone</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Clearance (Role)</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Telegram</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Arena</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700' }}>Subscription</th>
-                                <th style={{ padding: '0 15px 15px 15px', fontWeight: '700', textAlign: 'right' }}>Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {/* DÜZƏLİŞ: Təhlükəsiz massiv yoxlanışı edildi */}
-                            {(users || []).map(user => (
-                                <tr key={user.id} style={{ background: '#161a1e', transition: 'all 0.2s ease' }}>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '0.95fr 1.05fr',
+                    gap: '18px'
+                }}>
+                    <div style={cardStyle}>
+                        <h3 style={{ marginTop: 0, marginBottom: '18px' }}>Send to single user</h3>
 
-                                    {/* EMAİL */}
-                                    <td style={{ padding: '16px 15px', borderRadius: '12px 0 0 12px', fontWeight: '700', color: '#e2e8f0', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139', borderLeft: '1px solid #2b3139' }}>
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            <select
+                                value={selectedUserId}
+                                onChange={(e) => setSelectedUserId(e.target.value)}
+                                style={inputStyle}
+                            >
+                                <option value="">Select user</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
                                         {user.email}
-                                    </td>
+                                    </option>
+                                ))}
+                            </select>
 
-                                    {/* NÖMRƏ */}
-                                    <td style={{ padding: '16px 15px', color: '#94a3b8', fontSize: '14px', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139' }}>
-                                        {user.phoneNumber || 'Unverified'}
-                                    </td>
+                            <input
+                                value={userForm.title}
+                                onChange={(e) => setUserForm((prev) => ({ ...prev, title: e.target.value }))}
+                                placeholder="Title"
+                                style={inputStyle}
+                            />
 
-                                    {/* ROL */}
-                                    <td style={{ padding: '16px 15px', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139' }}>
-                                        <span
-                                            onClick={() => handleChangeRole(user.id, user.role)}
-                                            style={{
-                                                background: user.role === 'ROLE_ADMIN' ? 'rgba(252, 213, 53, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                                                color: user.role === 'ROLE_ADMIN' ? '#fcd535' : '#94a3b8',
-                                                padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '800',
-                                                border: `1px solid ${user.role === 'ROLE_ADMIN' ? 'rgba(252, 213, 53, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
-                                                cursor: 'pointer', transition: '0.2s'
-                                            }} title="Rolu dəyişmək üçün klikləyin" onMouseOver={(e)=>e.target.style.transform='scale(1.05)'} onMouseOut={(e)=>e.target.style.transform='scale(1)'}>
-                                            {user.role ? user.role.replace('ROLE_', '') : 'USER'}
-                                        </span>
-                                    </td>
+                            <textarea
+                                value={userForm.message}
+                                onChange={(e) => setUserForm((prev) => ({ ...prev, message: e.target.value }))}
+                                placeholder="Message"
+                                rows={5}
+                                style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }}
+                            />
 
-                                    {/* TELEGRAM */}
-                                    <td style={{ padding: '16px 15px', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139' }}>
-                                        {user.telegramChatId ?
-                                            <span style={{background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', padding: '6px', borderRadius: '6px', fontSize: '14px', border: '1px solid rgba(34, 197, 94, 0.3)'}}>🔗</span> :
-                                            <span style={{color: '#475569', fontSize: '18px'}}>—</span>}
-                                    </td>
+                            <select
+                                value={userForm.type}
+                                onChange={(e) => setUserForm((prev) => ({ ...prev, type: e.target.value }))}
+                                style={inputStyle}
+                            >
+                                <option value="INFO">INFO</option>
+                                <option value="SUCCESS">SUCCESS</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="ERROR">ERROR</option>
+                                <option value="SYSTEM">SYSTEM</option>
+                            </select>
 
-                                    {/* ARENA */}
-                                    <td style={{ padding: '16px 15px', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139' }}>
-                                        <button
-                                            onClick={() => handleToggleTournament(user.id)}
-                                            style={{
-                                                background: user.inTournament ? 'rgba(2, 192, 118, 0.1)' : 'transparent',
-                                                color: user.inTournament ? '#02c076' : '#64748b',
-                                                border: user.inTournament ? '1px solid rgba(2, 192, 118, 0.4)' : '1px solid #334155',
-                                                padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '900', cursor: 'pointer', transition: '0.2s'
-                                            }} onMouseOver={(e)=>e.target.style.transform='scale(1.05)'} onMouseOut={(e)=>e.target.style.transform='scale(1)'}>
-                                            {user.inTournament ? '🏆 IN ARENA' : 'ADD TO ARENA'}
-                                        </button>
-                                    </td>
-
-                                    {/* SUBSCRIPTION */}
-                                    <td style={{ padding: '16px 15px', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139' }}>
-                                        <button
-                                            onClick={() => handleTogglePremium(user.id)}
-                                            style={{
-                                                background: user.premium ? 'linear-gradient(90deg, #d4af37 0%, #fcd535 100%)' : 'transparent',
-                                                color: user.premium ? '#000' : '#64748b',
-                                                border: user.premium ? 'none' : '1px solid #334155',
-                                                padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '900', cursor: 'pointer', transition: '0.2s',
-                                                boxShadow: user.premium ? '0 0 15px rgba(252, 213, 53, 0.4)' : 'none'
-                                            }} onMouseOver={(e)=>e.target.style.transform='scale(1.05)'} onMouseOut={(e)=>e.target.style.transform='scale(1)'}>
-                                            {user.premium ? 'PRO TIER' : 'FREE TIER'}
-                                        </button>
-                                    </td>
-
-                                    {/* İDARƏ (BLOCK/RESTORE) */}
-                                    <td style={{ padding: '16px 15px', textAlign: 'right', borderRadius: '0 12px 12px 0', borderTop: '1px solid #2b3139', borderBottom: '1px solid #2b3139', borderRight: '1px solid #2b3139' }}>
-                                        <button
-                                            onClick={() => handleToggleStatus(user.id)}
-                                            style={{
-                                                background: 'transparent', border: `1px solid ${user.active ? 'rgba(248, 73, 96, 0.4)' : 'rgba(2, 192, 118, 0.4)'}`,
-                                                color: user.active ? '#f84960' : '#02c076',
-                                                padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '800', transition: '0.2s'
-                                            }} onMouseOver={(e)=>e.target.style.background = user.active ? 'rgba(248, 73, 96, 0.1)' : 'rgba(2, 192, 118, 0.1)'} onMouseOut={(e)=>e.target.style.background = 'transparent'}>
-                                            {user.active ? 'BLOCK ACCESS' : 'RESTORE ACCESS'}
-                                        </button>
-                                    </td>
-
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                            <button onClick={handleUserNotification} style={primaryButtonStyle}>
+                                Send to selected user
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
 
-            <style>
-                {`
-                    @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
-                `}
-            </style>
+                    <div style={cardStyle}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '18px'
+                        }}>
+                            <h3 style={{ margin: 0 }}>Users</h3>
+                            <button onClick={loadUsers} style={secondaryButtonStyle}>
+                                Refresh
+                            </button>
+                        </div>
+
+                        {loading ? (
+                            <div style={{ color: '#94a3b8' }}>Loading users...</div>
+                        ) : (
+                            <div style={{ maxHeight: '680px', overflowY: 'auto', display: 'grid', gap: '12px' }}>
+                                {users.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        style={{
+                                            border: '1px solid rgba(148,163,184,0.12)',
+                                            background: 'rgba(15,23,42,0.72)',
+                                            borderRadius: '16px',
+                                            padding: '16px'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 700, marginBottom: '6px', color: '#f8fafc' }}>
+                                            {user.email}
+                                        </div>
+
+                                        <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                                            {user.phoneNumber || 'No phone'} • {user.role} • {user.active ? 'ACTIVE' : 'INACTIVE'}
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                            <button onClick={() => handleChangeRole(user.id, user.role)} style={smallButtonStyle}>
+                                                Toggle role
+                                            </button>
+                                            <button onClick={() => handleToggleStatus(user.id)} style={smallButtonStyle}>
+                                                Toggle status
+                                            </button>
+                                            <button onClick={() => handleTogglePremium(user.id)} style={smallButtonStyle}>
+                                                Toggle premium
+                                            </button>
+                                            <button onClick={() => handleToggleTournament(user.id)} style={smallButtonStyle}>
+                                                Toggle tournament
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     );
+}
+
+const inputStyle = {
+    width: '100%',
+    background: 'rgba(2,6,23,0.84)',
+    border: '1px solid rgba(148,163,184,0.18)',
+    borderRadius: '14px',
+    padding: '14px 16px',
+    color: '#e2e8f0',
+    outline: 'none',
+    boxSizing: 'border-box'
+};
+
+const primaryButtonStyle = {
+    background: 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)',
+    border: 'none',
+    color: '#fff',
+    borderRadius: '14px',
+    padding: '14px 18px',
+    cursor: 'pointer',
+    fontWeight: 800
+};
+
+const secondaryButtonStyle = {
+    background: 'rgba(15,23,42,0.85)',
+    border: '1px solid rgba(148,163,184,0.18)',
+    color: '#e2e8f0',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    cursor: 'pointer',
+    fontWeight: 700
+};
+
+const successButtonStyle = {
+    background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)',
+    border: 'none',
+    color: '#fff',
+    borderRadius: '14px',
+    padding: '14px 18px',
+    cursor: 'pointer',
+    fontWeight: 800,
+    flex: 1
+};
+
+const dangerButtonStyle = {
+    background: 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+    border: 'none',
+    color: '#fff',
+    borderRadius: '14px',
+    padding: '14px 18px',
+    cursor: 'pointer',
+    fontWeight: 800,
+    flex: 1
+};
+
+const smallButtonStyle = {
+    background: 'rgba(30,41,59,0.9)',
+    border: '1px solid rgba(148,163,184,0.16)',
+    color: '#e2e8f0',
+    borderRadius: '10px',
+    padding: '9px 12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px'
 };
 
 export default AdminPage;

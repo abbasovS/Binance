@@ -2,16 +2,22 @@ const normalizeBaseUrl = (value = '') => value.replace(/\/+$/, '');
 
 export const GATEWAY_URL = normalizeBaseUrl(process.env.REACT_APP_GATEWAY_URL || '');
 
+const withGateway = (path) => `${GATEWAY_URL}${path}`;
+
 export const API_BASES = {
-    crypto: `${GATEWAY_URL}/api/crypto`,
-    user: `${GATEWAY_URL}/api/user`,
-    admin: `${GATEWAY_URL}/api/admin`,
-    users: `${GATEWAY_URL}/api/users`,
-    trades: `${GATEWAY_URL}/api/trades/user`,
-    withdraw: `${GATEWAY_URL}/api/withdraw`,
-    analysis: `${GATEWAY_URL}/analysis`,
-    news: `${GATEWAY_URL}/api/news`,
-    market: `${GATEWAY_URL}/api/market`
+    crypto: withGateway('/api/crypto'),
+    user: withGateway('/api/user'),
+    admin: withGateway('/api/admin'),
+    users: withGateway('/api/users'),
+    trades: withGateway('/api/trades/user'),
+    withdraw: withGateway('/api/withdraw'),
+    analysis: withGateway('/analysis'),
+    news: withGateway('/api/news'),
+    market: withGateway('/api/market')
+};
+
+export const APP_CONFIG = {
+    googleClientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || ''
 };
 
 export const EXTERNAL_APIS = {

@@ -9,7 +9,17 @@ export const adminApi = {
     togglePremium: (userId) => authAxios.put(`${API_BASES.admin}/users/${userId}/premium`, {}),
     toggleTournament: (userId) => authAxios.put(`${API_BASES.admin}/users/${userId}/tournament`, {}),
     controlTournament: (action) => authAxios.post(`${API_BASES.admin}/tournament/control`, {}, { params: { action } }),
-    broadcast: (text) => authAxios.post(`${API_BASES.admin}/broadcast`, text, {
-        headers: { 'Content-Type': 'text/plain' }
-    })
+
+    // legacy
+    broadcast: (text) =>
+        authAxios.post(`${API_BASES.admin}/broadcast`, text, {
+            headers: { 'Content-Type': 'text/plain' }
+        }),
+
+    // new inbox notification system
+    broadcastNotification: (payload) =>
+        authAxios.post(`${API_BASES.admin}/notifications/broadcast`, payload),
+
+    sendNotificationToUser: (userId, payload) =>
+        authAxios.post(`${API_BASES.admin}/notifications/user/${userId}`, payload)
 };

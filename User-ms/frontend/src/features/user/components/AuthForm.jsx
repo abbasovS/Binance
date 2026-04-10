@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 
 const AuthForm = ({
                       view,
@@ -399,17 +399,15 @@ const AuthForm = ({
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                        <GoogleOAuthProvider clientId="8653359311-tu5l87kp2caq784hhj3omfibln22ldeu.apps.googleusercontent.com">
-                                            <GoogleLogin
-                                                onSuccess={handleGoogleLogin}
-                                                onError={() => toast.error('Google verification failed')}
-                                                theme="filled_black"
-                                                shape="pill"
-                                                size="large"
-                                                text={isSignup ? "signup_with" : "signin_with"}
-                                                width={320}
-                                            />
-                                        </GoogleOAuthProvider>
+                                        <GoogleLogin
+                                            onSuccess={handleGoogleLogin}
+                                            onError={() => toast.error('Google verification failed')}
+                                            theme="filled_black"
+                                            shape="pill"
+                                            size="large"
+                                            text={isSignup ? "signup_with" : "signin_with"}
+                                            width={320}
+                                        />
                                     </div>
 
                                     <div className="auth-footer-links" style={{

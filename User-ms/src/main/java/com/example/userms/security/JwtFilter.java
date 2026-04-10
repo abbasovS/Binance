@@ -55,15 +55,12 @@ public class JwtFilter extends OncePerRequestFilter {
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-            // --- YENİ ƏLAVƏ EDİLƏN HİSSƏ (CANLI BAN YOXLAMASI) ---
-            // Əgər istifadəçi bazada deaktiv edilibsə (isEnabled false isə),
-            // onun keçərli tokeni olsa belə qəbul etmirik!
+
             if (!userDetails.isEnabled()) {
                 System.out.println("Bloklanmış istifadəçi sistemə girməyə cəhd etdi: " + userEmail);
                 filterChain.doFilter(request, response);
                 return;
             }
-            // ------------------------------------------------------
 
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

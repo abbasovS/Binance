@@ -144,3 +144,197 @@ body {
   0% { transform: perspective(1000px) rotateY(-90deg) scale(0.5); opacity: 0; }
   100% { transform: perspective(1000px) rotateY(0deg) scale(1); opacity: 1; }
 }
+.tw-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.tw-modal {
+  width: 440px;
+  max-width: 100%;
+  border-radius: 24px;
+  padding: 28px;
+  background:
+          linear-gradient(
+                  145deg,
+                  rgba(20, 22, 28, 0.98) 0%,
+                  rgba(14, 16, 21, 0.99) 100%
+          );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.04),
+          0 24px 60px rgba(0, 0, 0, 0.48);
+}
+
+.tw-header {
+  margin-bottom: 20px;
+}
+
+.tw-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+
+.tw-title {
+  margin: 0 0 8px 0;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.tw-subtitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.tw-panel {
+  border-radius: 18px;
+  background:
+          linear-gradient(
+                  145deg,
+                  rgba(255, 255, 255, 0.04) 0%,
+                  rgba(255, 255, 255, 0.02) 100%
+          );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tw-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tw-row:last-child {
+  border-bottom: none;
+}
+
+.tw-row-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tw-row-value {
+  color: #f3f4f6;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.tw-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.tw-checkbox input {
+  margin-top: 2px;
+  accent-color: #94a3b8;
+  transform: scale(1.05);
+}
+
+.tw-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.tw-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tw-btn-secondary {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tw-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tw-btn-primary {
+  background:
+          linear-gradient(
+                  145deg,
+                  rgba(255, 255, 255, 0.12) 0%,
+                  rgba(255, 255, 255, 0.08) 100%
+          );
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tw-btn-primary:hover:not(:disabled) {
+  background:
+          linear-gradient(
+                  145deg,
+                  rgba(255, 255, 255, 0.16) 0%,
+                  rgba(255, 255, 255, 0.10) 100%
+          );
+}
+
+.tw-btn-primary:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .tw-modal {
+    padding: 22px;
+    border-radius: 20px;
+  }
+
+  .tw-title {
+    font-size: 21px;
+  }
+
+  .tw-subtitle {
+    font-size: 13px;
+  }
+
+  .tw-row {
+    padding: 12px 14px;
+  }
+
+  .tw-actions {
+    flex-direction: column;
+  }
+}
