@@ -1,0 +1,22 @@
+# Build & system
+.gradle/
+build/
+**/build/
+
+# Env
+.env
+frontend/.env*
+
+# IDE
+.idea/
+
+# Node
+node_modules/
+
+# Zip & logs
+*.zip
+*.log
+
+# Mac/Windows
+.DS_Store
+Thumbs.db
