@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-premium-column
+      author: senan
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: premium
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

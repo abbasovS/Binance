@@ -1,2 +1,9 @@
 node_modules
 build
+.git
+.idea
+*.zip
+coverage
+npm-debug.log
+yarn-error.log
+.DS_Store

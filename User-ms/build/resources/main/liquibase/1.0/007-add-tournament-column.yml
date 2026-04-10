@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-tournament-column
+      author: senan
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: in_tournament
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

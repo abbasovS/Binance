@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-role-column
+      author: senan
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: role
+                  type: varchar(50)
+                  defaultValue: 'ROLE_USER'
+                  constraints:
+                    nullable: false

@@ -1,9 +1,14 @@
 package com.example.userms.controller;
-import com.example.userms.dto.request.*;
+
 import com.example.userms.dto.UserRegistrationDto;
+import com.example.userms.dto.request.GoogleLoginRequest;
+import com.example.userms.dto.request.LoginRequest;
+import com.example.userms.dto.request.TelegramConnectRequest;
+import com.example.userms.dto.request.UserUpdateRequest;
+import com.example.userms.dto.request.VerifyRequest;
 import com.example.userms.dto.response.TelegramConnectInitResponse;
 import com.example.userms.dto.response.TelegramStatusResponse;
-import com.example.userms.model.UserEntity;
+import com.example.userms.dto.response.UserProfileResponse;
 import com.example.userms.service.SystemStateService;
 import com.example.userms.service.UserService;
 import jakarta.validation.Valid;
@@ -22,14 +27,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserController {
 
-        private final UserService userService;
-        private final SystemStateService systemStateService;
+    private final UserService userService;
+    private final SystemStateService systemStateService;
 
-        @PostMapping("/signup")
-        public ResponseEntity<Void> signup(@RequestBody @Valid UserRegistrationDto dto) {
-             userService.createUser(dto);
-             return ResponseEntity.ok().build();
-        }
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@RequestBody @Valid UserRegistrationDto dto) {
+        userService.createUser(dto);
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/verify")
     public ResponseEntity<Map<String, String>> verify(@RequestBody @Valid VerifyRequest request) {
@@ -49,28 +54,23 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-
     @PutMapping("/update")
     public ResponseEntity<Void> update(
             @AuthenticationPrincipal UserDetails currentUser,
             @RequestBody @Valid UserUpdateRequest request
     ) {
-
         userService.updateUser(currentUser.getUsername(), request);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/delete")
-    public ResponseEntity<Void> deleteMyAccount(
-            @AuthenticationPrincipal UserDetails currentUser
-    ) {
+    public ResponseEntity<Void> deleteMyAccount(@AuthenticationPrincipal UserDetails currentUser) {
         userService.deleteUser(currentUser.getUsername());
         return ResponseEntity.noContent().build();
     }
 
-
     @GetMapping("/me")
-    public ResponseEntity<UserEntity> getMyProfile() {
+    public ResponseEntity<UserProfileResponse> getMyProfile() {
         return ResponseEntity.ok(userService.getMyProfile());
     }
 
@@ -108,9 +108,8 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllTelegramChatIds());
     }
 
-
     @PostMapping("/telegram/disconnect")
-    public ResponseEntity<?> disconnectTelegram(@AuthenticationPrincipal UserDetails currentUser) {
+    public ResponseEntity<Void> disconnectTelegram(@AuthenticationPrincipal UserDetails currentUser) {
         userService.disconnectTelegram(currentUser.getUsername());
         return ResponseEntity.ok().build();
     }
@@ -118,12 +117,11 @@ public class UserController {
     @GetMapping("/system-info")
     public ResponseEntity<Map<String, Object>> getSystemInfo() {
         Map<String, Object> info = new HashMap<>();
-
         info.put("tournamentActive", systemStateService.isTournamentActive());
         info.put("globalMessage", systemStateService.getGlobalMessage());
-
         return ResponseEntity.ok(info);
     }
+
     @PostMapping("/google")
     public ResponseEntity<Map<String, String>> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
         String token = userService.googleLogin(request);
@@ -132,4 +130,4 @@ public class UserController {
         response.put("token", token);
         return ResponseEntity.ok(response);
     }
-    }
+}

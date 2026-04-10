@@ -26,8 +26,6 @@ const TradeTerminal = () => {
     const container = useRef();
     const navigate = useNavigate();
 
-    // Performans: localStorage yalnız ilk render-də oxunur (Lazy initialization)
-    const [userEmail] = useState(() => localStorage.getItem('userEmail') || 'guest');
     const [balance, setBalance] = useState(() => {
         return Number(localStorage.getItem(`userBalance_${localStorage.getItem('userEmail') || 'guest'}`)) || 10000;
     });

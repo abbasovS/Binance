@@ -13,3 +13,5 @@ databaseChangeLog:
      file: classpath:liquibase/1.0/006-add-premium-column.yml
   - include:
       file: classpath:liquibase/1.0/007-add-tournament-column.yml
+  - include:
+      file: classpath:liquibase/1.0/008-create-notification-table.yml
