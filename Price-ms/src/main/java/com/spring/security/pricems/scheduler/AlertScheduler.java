@@ -1,9 +1,11 @@
 package com.spring.security.pricems.scheduler;
+
 import com.spring.security.pricems.dao.dto.model.PriceAlert;
+import com.spring.security.pricems.enums.TargetSide;
 import com.spring.security.pricems.repository.AlertRepository;
 import com.spring.security.pricems.repository.WatchListRepository;
-import com.spring.security.pricems.service.*;
-
+import com.spring.security.pricems.service.PriceService;
+import com.spring.security.pricems.service.TelegramService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,57 +24,80 @@ public class AlertScheduler {
     private final AlertRepository alertRepository;
     private final WatchListRepository watchListRepository;
     private final PriceService priceService;
-    private final RedisService redisService;
     private final TelegramService telegramService;
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(fixedDelayString = "${pricing.scheduler.refresh-fixed-delay-ms:10000}")
     public void monitorPrices() {
         List<String> symbols = watchListRepository.findDistinctSymbols();
-        if (symbols.isEmpty()) return;
+        if (symbols.isEmpty()) {
+            return;
+        }
 
         for (String symbol : symbols) {
-            priceService.getRealtimePrice(symbol); // Redis cache-i yeniləyir
+            try {
+                priceService.getRealtimePrice(symbol);
+            } catch (Exception e) {
+                log.warn("Price refresh failed for {}: {}", symbol, e.getMessage());
+            }
         }
+
         log.debug("Prices refreshed for {} symbols", symbols.size());
     }
 
-    @Scheduled(fixedRate = 30000)
+    @Scheduled(fixedDelayString = "${pricing.scheduler.alert-check-fixed-delay-ms:30000}")
     public void checkAlerts() {
         List<PriceAlert> activeAlerts = alertRepository.findAllByIsTriggeredFalse();
-        if (activeAlerts.isEmpty()) return;
+        if (activeAlerts.isEmpty()) {
+            return;
+        }
 
-        // OPTİMALLAŞDIRMA: Alertləri simvollara görə qruplaşdırırıq (Məs: BTC üçün olan 50 alerti bir yerə yığırıq)
         Map<String, List<PriceAlert>> alertsBySymbol = activeAlerts.stream()
                 .collect(Collectors.groupingBy(PriceAlert::getSymbol));
 
         List<PriceAlert> triggeredAlerts = new ArrayList<>();
 
-        // Hər simvol üçün yalnız 1 DƏFƏ qiymət çəkirik
         for (Map.Entry<String, List<PriceAlert>> entry : alertsBySymbol.entrySet()) {
             String symbol = entry.getKey();
             Double currentPrice = priceService.getRealtimePrice(symbol);
 
-            if (currentPrice == null) continue;
+            if (currentPrice == null) {
+                log.warn("Alert check skipped. Current price unavailable for {}", symbol);
+                continue;
+            }
 
-            // Həmin simvola aid olan bütün alertləri eyni qiymətlə yoxlayırıq
             for (PriceAlert alert : entry.getValue()) {
-                if (isHit(alert, currentPrice)) {
-                    String notification = String.format("🔔 ŞƏXSİ HƏDƏF: %s hədəfə çatdı! \nCari qiymət: %f",
-                            symbol, currentPrice);
+                try {
+                    if (!isHit(alert, currentPrice)) {
+                        continue;
+                    }
 
-                    telegramService.sendAlert(notification); // (Gələcəkdə specific user-ə gedəcək)
+                    String notification = String.format(
+                            "🔔 Alert triggered\nSymbol: %s\nTarget: %.8f\nCurrent: %.8f\nDirection: %s",
+                            symbol,
+                            alert.getTargetPrice(),
+                            currentPrice,
+                            alert.getSide().name()
+                    );
 
+                    telegramService.sendAlert(alert.getChatId(), notification);
                     alert.setTriggered(true);
                     triggeredAlerts.add(alert);
+                } catch (Exception e) {
+                    log.error("Alert processing failed. alertId={}, symbol={}, error={}",
+                            alert.getId(), symbol, e.getMessage(), e);
                 }
             }
         }
 
         if (!triggeredAlerts.isEmpty()) {
             alertRepository.saveAll(triggeredAlerts);
+            log.info("Triggered alerts saved. count={}", triggeredAlerts.size());
         }
     }
 
     private boolean isHit(PriceAlert alert, Double currentPrice) {
-        return "UP".equals(alert.getSide()) ? currentPrice >= alert.getTargetPrice() : currentPrice <= alert.getTargetPrice();
-    }}
+        return alert.getSide() == TargetSide.UP
+                ? currentPrice >= alert.getTargetPrice()
+                : currentPrice <= alert.getTargetPrice();
+    }
+}

@@ -32,6 +32,7 @@ public class WatchListController {
         watchlistService.deleteWatchListSymbol(symbol, principal.getName());
         return ResponseEntity.ok().build();
     }
+
     @GetMapping("/watchlist/internal")
     public ResponseEntity<List<WatchList>> getWatchlistInternal(@RequestParam("email") String email) {
         return ResponseEntity.ok(watchlistService.getAllWatchlist(email));

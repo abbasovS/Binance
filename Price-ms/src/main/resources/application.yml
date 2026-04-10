@@ -1,14 +1,33 @@
 spring:
+  application:
+    name: price-ms
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      timeout: 3s
 
   datasource:
     url: ${DB_URL:}
     username: ${DB_USER:}
     password: ${DB_PASS:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
 
   liquibase:
     change-log: classpath:liquibase/changelog-master.yml
@@ -18,17 +37,31 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
 
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8082}
+
+internal:
+  api:
+    key: ${INTERNAL_API_KEY:}
+
 server:
   port: 8083
+  forward-headers-strategy: framework
 
 management:
   endpoints:
     web:
       exposure:
-        include: health, metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
 
 sentry:
   dsn: ${SENTRY_DSN:}
@@ -39,10 +72,10 @@ sentry:
 
 binance:
   api:
-    url: https://data-api.binance.vision/api/v3
+    url: ${BINANCE_API_URL:https://data-api.binance.vision/api/v3}
 
 cors:
-  allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 jwt:
   secret: ${SECRET_KEY:}

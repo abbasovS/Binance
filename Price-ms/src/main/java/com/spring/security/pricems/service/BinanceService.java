@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -20,15 +21,21 @@ public class BinanceService {
 
     public boolean isValidSymbol(String symbol) {
         String upperSymbol = symbol.toUpperCase();
-        try {
-            // Güvenli URI Parametresi Kullanımı
-            String requestUrl = binanceApiUrl + "/ticker/price?symbol={symbol}";
-            restTemplate.getForObject(requestUrl, Map.class, upperSymbol);
 
-            log.info("Sembol Binance'de bulundu: {}", upperSymbol);
-            return true;
+        try {
+            String requestUrl = binanceApiUrl + "/ticker/price?symbol={symbol}";
+            Map<String, Object> response = restTemplate.getForObject(requestUrl, Map.class, upperSymbol);
+
+            boolean valid = response != null && response.containsKey("price");
+            if (valid) {
+                log.debug("Symbol validated on Binance: {}", upperSymbol);
+            }
+            return valid;
+        } catch (RestClientException e) {
+            log.warn("Binance symbol validation failed for {}: {}", upperSymbol, e.getMessage());
+            return false;
         } catch (Exception e) {
-            log.warn("Sembol Binance'de bulunamadı veya bağlantı hatası: {}", upperSymbol);
+            log.error("Unexpected error while validating symbol {}: {}", upperSymbol, e.getMessage(), e);
             return false;
         }
     }

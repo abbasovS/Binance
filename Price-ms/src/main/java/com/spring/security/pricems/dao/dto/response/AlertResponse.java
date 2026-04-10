@@ -9,8 +9,9 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AlertResponse {
-
     Long id;
     String symbol;
     Double targetPrice;
+    String side;
+    boolean triggered;
 }

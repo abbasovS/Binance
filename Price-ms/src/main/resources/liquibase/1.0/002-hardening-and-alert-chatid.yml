@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260410-1-add-chat-id-to-alerts
+      author: senan
+      changes:
+        - addColumn:
+            tableName: alerts_price
+            columns:
+              - column:
+                  name: chat_id
+                  type: VARCHAR(100)
+                  defaultValue: pending
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 20260410-2-add-watchlist-unique-constraint
+      author: senan
+      changes:
+        - addUniqueConstraint:
+            tableName: watchlist
+            columnNames: symbol, user_email
+            constraintName: uk_watchlist_symbol_user
+
+  - changeSet:
+      id: 20260410-3-add-watchlist-indexes
+      author: senan
+      changes:
+        - createIndex:
+            tableName: watchlist
+            indexName: idx_watchlist_user_email
+            columns:
+              - column:
+                  name: user_email
+        - createIndex:
+            tableName: watchlist
+            indexName: idx_watchlist_symbol
+            columns:
+              - column:
+                  name: symbol
+
+  - changeSet:
+      id: 20260410-4-add-alert-indexes
+      author: senan
+      changes:
+        - createIndex:
+            tableName: alerts_price
+            indexName: idx_alerts_user_email
+            columns:
+              - column:
+                  name: user_email
+        - createIndex:
+            tableName: alerts_price
+            indexName: idx_alerts_symbol
+            columns:
+              - column:
+                  name: symbol
+        - createIndex:
+            tableName: alerts_price
+            indexName: idx_alerts_triggered
+            columns:
+              - column:
+                  name: is_triggered

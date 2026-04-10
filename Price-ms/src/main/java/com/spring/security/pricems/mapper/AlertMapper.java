@@ -1,6 +1,5 @@
 package com.spring.security.pricems.mapper;
 
-
 import com.spring.security.pricems.dao.dto.model.PriceAlert;
 import com.spring.security.pricems.dao.dto.response.AlertResponse;
 
@@ -18,9 +17,10 @@ public class AlertMapper {
                 .id(entity.getId())
                 .symbol(entity.getSymbol())
                 .targetPrice(entity.getTargetPrice())
+                .side(entity.getSide() != null ? entity.getSide().name() : null)
+                .triggered(entity.isTriggered())
                 .build();
     }
-
 
     public static List<AlertResponse> mapToResponseList(List<PriceAlert> entities) {
         return entities.stream()

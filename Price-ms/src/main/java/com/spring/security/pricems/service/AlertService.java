@@ -3,6 +3,8 @@ package com.spring.security.pricems.service;
 import com.spring.security.pricems.dao.dto.model.PriceAlert;
 import com.spring.security.pricems.dao.dto.request.AlertRequest;
 import com.spring.security.pricems.dao.dto.response.AlertResponse;
+import com.spring.security.pricems.enums.TargetSide;
+import com.spring.security.pricems.exception.CryptoException;
 import com.spring.security.pricems.exception.SymbolNotFoundException;
 import com.spring.security.pricems.mapper.AlertMapper;
 import com.spring.security.pricems.repository.AlertRepository;
@@ -17,27 +19,31 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AlertService {
+
     AlertRepository repository;
     PriceService priceService;
 
     public void createAlert(AlertRequest request, String userEmail) {
-        Double currentMarketPrice = priceService.getRealtimePrice(request.getSymbol().toUpperCase());
+        String symbol = request.getSymbol().trim().toUpperCase();
+        Double currentMarketPrice = priceService.getRealtimePrice(symbol);
 
         if (currentMarketPrice == null) {
-            throw new RuntimeException("Qiymət alınmadı, simvolu düzgün daxil edin!");
+            throw new CryptoException("Qiymət alınmadı. Symbol düzgün deyil və ya Binance əlçatan deyil.");
         }
 
-        PriceAlert newAlert = new PriceAlert();
-        newAlert.setSymbol(request.getSymbol().toUpperCase());
-        newAlert.setTargetPrice(request.getTargetPrice());
-        newAlert.setUserEmail(userEmail);
-        newAlert.setTriggered(false);
+        TargetSide side = request.getTargetPrice() > currentMarketPrice
+                ? TargetSide.UP
+                : TargetSide.DOWN;
 
-        if (request.getTargetPrice() > currentMarketPrice) {
-            newAlert.setSide("UP");
-        } else {
-            newAlert.setSide("DOWN");
-        }
+        PriceAlert newAlert = PriceAlert.builder()
+                .symbol(symbol)
+                .targetPrice(request.getTargetPrice())
+                .userEmail(userEmail)
+                .chatId(request.getChatId().trim())
+                .side(side)
+                .isTriggered(false)
+                .build();
+
         repository.save(newAlert);
     }
 
@@ -48,7 +54,6 @@ public class AlertService {
     }
 
     public List<AlertResponse> getAllAlerts(String userEmail) {
-        List<PriceAlert> alerts = repository.findAllByUserEmail(userEmail);
-        return AlertMapper.mapToResponseList(alerts);
+        return AlertMapper.mapToResponseList(repository.findAllByUserEmail(userEmail));
     }
 }

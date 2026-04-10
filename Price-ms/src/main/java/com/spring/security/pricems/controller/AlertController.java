@@ -3,6 +3,7 @@ package com.spring.security.pricems.controller;
 import com.spring.security.pricems.dao.dto.request.AlertRequest;
 import com.spring.security.pricems.dao.dto.response.AlertResponse;
 import com.spring.security.pricems.service.AlertService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,12 +15,13 @@ import java.util.List;
 @RequestMapping("/api/crypto/alert")
 @RequiredArgsConstructor
 public class AlertController {
+
     private final AlertService alertService;
 
     @PostMapping("/add")
-    public ResponseEntity<String> createAlert(@RequestBody AlertRequest request, Principal principal) {
+    public ResponseEntity<String> createAlert(@Valid @RequestBody AlertRequest request, Principal principal) {
         alertService.createAlert(request, principal.getName());
-        return ResponseEntity.ok("Alert qeyd edildi: " + request.getSymbol());
+        return ResponseEntity.ok("Alert qeyd edildi: " + request.getSymbol().toUpperCase());
     }
 
     @DeleteMapping("/delete/{id}")

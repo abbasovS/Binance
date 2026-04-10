@@ -15,25 +15,28 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class WatchListService {
+
     private final WatchListRepository watchListRepository;
     private final BinanceService binanceService;
 
     @Transactional
     public void addWatchListSymbol(String symbol, String userEmail) {
-        String sym = symbol.toUpperCase();
+        String sym = symbol.trim().toUpperCase();
 
         if (watchListRepository.existsBySymbolAndUserEmail(sym, userEmail)) {
             throw new AlreadyExistsException(sym + " already exists for this user");
         }
+
         if (!binanceService.isValidSymbol(sym)) {
             throw new SymbolNotFoundException(sym + " not found");
         }
 
         WatchList wl = new WatchList();
         wl.setSymbol(sym);
-        wl.setUserEmail(userEmail); // YENİ
+        wl.setUserEmail(userEmail);
+
         watchListRepository.save(wl);
-        log.info("Added WatchListSymbol: {} for user: {}", sym, userEmail);
+        log.info("Added watchlist symbol {} for user {}", sym, userEmail);
     }
 
     public List<WatchList> getAllWatchlist(String userEmail) {
@@ -42,14 +45,13 @@ public class WatchListService {
 
     @Transactional
     public void deleteWatchListSymbol(String symbol, String userEmail) {
-        String sym = symbol.toUpperCase();
+        String sym = symbol.trim().toUpperCase();
+
         if (!watchListRepository.existsBySymbolAndUserEmail(sym, userEmail)) {
             throw new SymbolNotFoundException(sym + " not found for this user");
         }
+
         watchListRepository.deleteBySymbolAndUserEmail(sym, userEmail);
-        log.info("Deleted WatchListSymbol: {} for user: {}", sym, userEmail);
+        log.info("Deleted watchlist symbol {} for user {}", sym, userEmail);
     }
-
-
-    }
-
+}
