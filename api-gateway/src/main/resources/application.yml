@@ -4,6 +4,7 @@ server:
 spring:
   application:
     name: api-gateway
+
   cloud:
     gateway:
       default-filters:
@@ -16,32 +17,41 @@ spring:
           max-frame-payload-length: 1048576
 
       globalcors:
+        add-to-simple-url-handler-mapping: true
         corsConfigurations:
           '[/**]':
-            allowedOriginPatterns:
-              - "*"
+            allowedOrigins:
+              - ${FRONTEND_ORIGIN:http://localhost:3000}
+              - http://127.0.0.1:3000
+              - http://localhost
             allowedMethods:
-              - "*"
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
             allowedHeaders:
               - "*"
+            exposedHeaders:
+              - Authorization
             allowCredentials: true
 
       routes:
         - id: User-ms
           uri: ${USER_MS_URL:http://user-ms:8082}
           predicates:
-            - Path=/api/user/**, /api/admin/**, /api/telegram/**
+            - Path=/api/user/**,/api/admin/**,/api/telegram/**
 
         - id: Trade-ms
           uri: ${TRADE_MS_URL:http://trade-ms:8085}
           predicates:
-            - Path=/api/users/**, /api/trades/user/**, /api/withdraw/**
+            - Path=/api/users/**,/api/trades/user/**,/api/withdraw/**
 
         - id: Price-ms
           uri: ${PRICE_MS_URL:http://price-ms:8083}
           predicates:
-            - Path=/api/crypto/**, /api/market/**, /ws-crypto/**
-          # 2. SEHRLİ ƏLAVƏ: WebSocket-i bu route üzərində aktiv edirik
+            - Path=/api/crypto/**,/api/market/**,/ws-crypto/**
           metadata:
             websocket-routing-enabled: true
 
@@ -59,10 +69,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, metrics
+        include: health,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 sentry:
   dsn: ${SENTRY_DSN:}

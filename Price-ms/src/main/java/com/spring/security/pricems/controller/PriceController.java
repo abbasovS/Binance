@@ -40,8 +40,6 @@ public class PriceController {
     }
 
 
-    // PriceController.java — mövcud endpoint-ə ƏLAVƏ et (silmə)
-    // PriceController.java içində dəyişdiriləcək sətir:
     @GetMapping("/prices")
     public ResponseEntity<List<PriceResponse>> getBatchPrices(
             @RequestParam("symbols") List<String> symbols) { // <-- "symbols" əlavə edildi

@@ -2,6 +2,14 @@ databaseChangeLog:
   - changeSet:
       id: 20260410-1-add-chat-id-to-alerts
       author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: alerts_price
+        - not:
+            columnExists:
+              tableName: alerts_price
+              columnName: chat_id
       changes:
         - addColumn:
             tableName: alerts_price
@@ -16,6 +24,14 @@ databaseChangeLog:
   - changeSet:
       id: 20260410-2-add-watchlist-unique-constraint
       author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: watchlist
+        - not:
+            uniqueConstraintExists:
+              tableName: watchlist
+              constraintName: uk_watchlist_symbol_user
       changes:
         - addUniqueConstraint:
             tableName: watchlist
@@ -23,8 +39,16 @@ databaseChangeLog:
             constraintName: uk_watchlist_symbol_user
 
   - changeSet:
-      id: 20260410-3-add-watchlist-indexes
+      id: 20260410-3-add-watchlist-indexes-user
       author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: watchlist
+        - not:
+            indexExists:
+              tableName: watchlist
+              indexName: idx_watchlist_user_email
       changes:
         - createIndex:
             tableName: watchlist
@@ -32,6 +56,19 @@ databaseChangeLog:
             columns:
               - column:
                   name: user_email
+
+  - changeSet:
+      id: 20260410-3-add-watchlist-indexes-symbol
+      author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: watchlist
+        - not:
+            indexExists:
+              tableName: watchlist
+              indexName: idx_watchlist_symbol
+      changes:
         - createIndex:
             tableName: watchlist
             indexName: idx_watchlist_symbol
@@ -40,8 +77,16 @@ databaseChangeLog:
                   name: symbol
 
   - changeSet:
-      id: 20260410-4-add-alert-indexes
+      id: 20260410-4-add-alert-indexes-user
       author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: alerts_price
+        - not:
+            indexExists:
+              tableName: alerts_price
+              indexName: idx_alerts_user_email
       changes:
         - createIndex:
             tableName: alerts_price
@@ -49,12 +94,38 @@ databaseChangeLog:
             columns:
               - column:
                   name: user_email
+
+  - changeSet:
+      id: 20260410-4-add-alert-indexes-symbol
+      author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: alerts_price
+        - not:
+            indexExists:
+              tableName: alerts_price
+              indexName: idx_alerts_symbol
+      changes:
         - createIndex:
             tableName: alerts_price
             indexName: idx_alerts_symbol
             columns:
               - column:
                   name: symbol
+
+  - changeSet:
+      id: 20260410-4-add-alert-indexes-triggered
+      author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: alerts_price
+        - not:
+            indexExists:
+              tableName: alerts_price
+              indexName: idx_alerts_triggered
+      changes:
         - createIndex:
             tableName: alerts_price
             indexName: idx_alerts_triggered

@@ -1,5 +1,8 @@
 databaseChangeLog:
   - include:
-      file: liquibase/1.0/001-create-watchlist-table.yml
+      file: 1.0/001-create-watchlist-table.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: liquibase/1.0/002-hardening-and-alert-chatid.yml
+      file: 1.0/002-hardening-and-alert-chatid.yml
+      relativeToChangelogFile: true

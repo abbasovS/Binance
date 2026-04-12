@@ -10,9 +10,9 @@ import lombok.experimental.FieldDefaults;
 @Table(
         name = "alerts_price",
         indexes = {
-                @Index(name = "idx_alert_user_email", columnList = "user_email"),
-                @Index(name = "idx_alert_symbol", columnList = "symbol"),
-                @Index(name = "idx_alert_triggered", columnList = "is_triggered")
+                @Index(name = "idx_alerts_user_email", columnList = "user_email"),
+                @Index(name = "idx_alerts_symbol", columnList = "symbol"),
+                @Index(name = "idx_alerts_triggered", columnList = "is_triggered")
         }
 )
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -41,6 +41,7 @@ public class PriceAlert {
     @Column(name = "chat_id", nullable = false, length = 100)
     String chatId;
 
+    @Builder.Default
     @Column(name = "is_triggered", nullable = false)
     boolean isTriggered = false;
 }

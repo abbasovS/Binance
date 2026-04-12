@@ -8,8 +8,7 @@ import com.spring.security.pricems.exception.CryptoException;
 import com.spring.security.pricems.exception.SymbolNotFoundException;
 import com.spring.security.pricems.mapper.AlertMapper;
 import com.spring.security.pricems.repository.AlertRepository;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +27,7 @@ public class AlertService {
         Double currentMarketPrice = priceService.getRealtimePrice(symbol);
 
         if (currentMarketPrice == null) {
-            throw new CryptoException("Qiymət alınmadı. Symbol düzgün deyil və ya Binance əlçatan deyil.");
+            throw new CryptoException("Qiymət alınmadı.");
         }
 
         TargetSide side = request.getTargetPrice() > currentMarketPrice
@@ -49,7 +48,7 @@ public class AlertService {
 
     public void deleteAlert(Long id, String userEmail) {
         PriceAlert alert = repository.findByIdAndUserEmail(id, userEmail)
-                .orElseThrow(() -> new SymbolNotFoundException("Alert tapılmadı və ya sizə aid deyil"));
+                .orElseThrow(() -> new SymbolNotFoundException("Alert tapılmadı"));
         repository.delete(alert);
     }
 
