@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-refresh-token-fields-to-users
+      author: chatgpt
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: token_version
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: refresh_token
+                  type: varchar(500)
+              - column:
+                  name: refresh_token_expiry
+                  type: timestamp

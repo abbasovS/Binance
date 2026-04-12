@@ -8,7 +8,7 @@ export const getStoredUser = () => {
 };
 
 export const hasToken = () => {
-    return Boolean(localStorage.getItem('token'));
+    return Boolean(localStorage.getItem('accessToken'));
 };
 
 export const isAdminUser = () => {

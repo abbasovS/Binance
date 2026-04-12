@@ -14,6 +14,5 @@ public class UserUpdateRequest {
     String newEmail;
     String newPassword;
     String newPhoneNumber;
-    @NotBlank(message = "Bos ola bilmez")
      String currentPassword;
 }

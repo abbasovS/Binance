@@ -20,6 +20,7 @@ const DashboardOverview = ({
         new Set([
             ...(watchlist || []).slice().reverse().map((item) => item?.symbol),
             ...(alerts || []).slice().reverse().map((item) => item?.symbol),
+            ...(rawOpenPositions || []).slice().reverse().map((item) => item?.symbol),
         ])
     ).filter(Boolean);
 

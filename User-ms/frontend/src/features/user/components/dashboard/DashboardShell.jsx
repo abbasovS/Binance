@@ -67,6 +67,7 @@ const DashboardShell = ({
                             notificationLoading,
                             handleMarkNotificationRead,
                             handleMarkAllNotificationsRead,
+                            handleTickerCoinClick,
                         }) => {
 
 
@@ -100,7 +101,7 @@ const DashboardShell = ({
                     />
 
                     <div style={{marginBottom: '24px'}}>
-                        <TickerBar onCoinClick={(coin) => console.log(coin, 'klikləndi!')}/>
+                        <TickerBar onCoinClick={handleTickerCoinClick} />
                     </div>
 
                     <DashboardOverview

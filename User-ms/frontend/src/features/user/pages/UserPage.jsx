@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -16,7 +16,7 @@ function User() {
 
     // UI states
     const [view, setView] = useState(() =>
-        localStorage.getItem('token') ? 'dashboard' : 'login'
+        localStorage.getItem('accessToken') ? 'dashboard' : 'login'
     );
     const [isLiquidityOpen, setIsLiquidityOpen] = useState(false);
     const [isTestWarningOpen, setIsTestWarningOpen] = useState(false);
@@ -29,9 +29,7 @@ function User() {
     const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
     const [isSentimentOpen, setIsSentimentOpen] = useState(false);
 
-
-
-    //ADMIN
+    // ADMIN
     const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
@@ -44,13 +42,13 @@ function User() {
     const [searchTerm, setSearchTerm] = useState('');
     const [symbol, setSymbol] = useState('BTCUSDT');
     const [portfolioInput, setPortfolioInput] = useState('');
-    const [alertInput, setAlertInput] = useState({symbol: '', targetPrice: ''});
+    const [alertInput, setAlertInput] = useState({ symbol: '', targetPrice: '' });
     const [systemMessage, setSystemMessage] = useState('');
-    const [telegramStatus, setTelegramStatus] = useState({connected: false, chatId: ''});
+    const [telegramStatus, setTelegramStatus] = useState({ connected: false, chatId: '' });
     const [prices, setPrices] = useState({});
 
     // Auth states
-    const [message, setMessage] = useState({text: '', type: ''});
+    const [message, setMessage] = useState({ text: '', type: '' });
     const [authLoading, setAuthLoading] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
@@ -59,38 +57,66 @@ function User() {
         verificationCode: '',
     });
 
-    const token = localStorage.getItem('token');
-    const userEmail = localStorage.getItem('userEmail');
+    const [authState, setAuthState] = useState(() => ({
+        token: localStorage.getItem('accessToken') || '',
+        userEmail: localStorage.getItem('userEmail') || '',
+    }));
 
-    const {data: watchlist = [], refetch: refetchWatchlist} = useQuery({
+    const token = authState.token;
+    const userEmail = authState.userEmail;
+
+    useEffect(() => {
+        const syncAuthState = () => {
+            setAuthState({
+                token: localStorage.getItem('accessToken') || '',
+                userEmail: localStorage.getItem('userEmail') || '',
+            });
+        };
+
+        window.addEventListener('storage', syncAuthState);
+        window.addEventListener('auth-error', syncAuthState);
+
+        return () => {
+            window.removeEventListener('storage', syncAuthState);
+            window.removeEventListener('auth-error', syncAuthState);
+        };
+    }, []);
+
+    const {
+        data: watchlist = [],
+        refetch: refetchWatchlist,
+    } = useQuery({
         queryKey: ['watchlist'],
         queryFn: () => cryptoApi.getWatchlist().then((res) => res.data),
-        enabled: !!token,
+        enabled: !!token && view === 'dashboard',
     });
 
-    const {data: alerts = [], refetch: refetchAlerts} = useQuery({
+    const {
+        data: alerts = [],
+        refetch: refetchAlerts,
+    } = useQuery({
         queryKey: ['alerts'],
         queryFn: () => cryptoApi.getAlerts().then((res) => res.data),
-        enabled: !!token,
+        enabled: !!token && view === 'dashboard',
     });
 
-    // 2. YENİ: Açıq pozisiyaları çəkirik
     const { data: openPositions = [] } = useQuery({
         queryKey: ['openPositions'],
-        queryFn: () => tradeApi.getActiveTrades().then((res) => res.data), //
-        enabled: !!token,
+        queryFn: () => tradeApi.getActiveTrades().then((res) => res.data),
+        enabled: !!token && view === 'dashboard',
     });
 
     useQuery({
-        queryKey: ['systemInfo'],
+        queryKey: ['systemInfo', userEmail || 'guest'],
         queryFn: () => authApi.getSystemInfo().then((res) => res.data),
-        enabled: !!token && !!userEmail,
         refetchInterval: 10000,
         onSuccess: (data) => {
             const msg = data?.globalMessage;
-            const storageKey = userEmail ? `lastSeenMessage_${userEmail}` : null;
+            const storageKey = userEmail
+                ? `lastSeenMessage_${userEmail}`
+                : 'lastSeenMessage_guest';
 
-            if (msg && storageKey && localStorage.getItem(storageKey) !== msg) {
+            if (msg && localStorage.getItem(storageKey) !== msg) {
                 setSystemMessage(msg);
             }
         },
@@ -107,6 +133,16 @@ function User() {
         setSystemMessage('');
     };
 
+
+
+
+    const handleTickerCoinClick = (coinSymbol) => {
+        if (!coinSymbol) return;
+        handleProAnalysis(coinSymbol);
+    };
+
+
+
     const fetchNotifications = useCallback(async () => {
         if (!token) return;
 
@@ -115,12 +151,16 @@ function User() {
 
             const [listRes, countRes] = await Promise.all([
                 notificationApi.getMyNotifications({ page: 0, size: 20 }),
-                notificationApi.getUnreadCount()
+                notificationApi.getUnreadCount(),
             ]);
 
             setNotifications(listRes?.data?.content || []);
             setNotificationUnreadCount(countRes?.data?.unreadCount || 0);
         } catch (err) {
+            if (err?.response?.status === 401) {
+                return;
+            }
+
             console.error('Notification fetch error:', err);
         } finally {
             setNotificationLoading(false);
@@ -148,8 +188,16 @@ function User() {
 
     useEffect(() => {
         const handleAuthError = () => {
-            localStorage.removeItem('token');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
             localStorage.removeItem('userEmail');
+
+            setAuthState({
+                token: '',
+                userEmail: '',
+            });
+
             setView('login');
             navigate('/');
             toast.error('Your session expired. Please log in again.');
@@ -173,7 +221,6 @@ function User() {
             ? `tournament_warning_seen_${userEmail}`
             : 'tournament_warning_seen_guest';
     };
-
 
     const handleTournamentAccess = () => {
         const warningSeen = localStorage.getItem(getTournamentWarningKey()) === 'true';
@@ -200,25 +247,25 @@ function User() {
         }
     }, [token, view]);
 
-    useEffect(() => {
-        if (view !== 'dashboard' || !token) return;
-
-        // Watchlist, alerts və openPositions-dakı bütün unikal simvolları yığırıq
-        const symbols = [
+    const dashboardSymbols = useMemo(() => {
+        return [
             ...new Set([
                 ...(watchlist || []).map((w) => w?.symbol),
                 ...(alerts || []).map((a) => a?.symbol),
-                ...(openPositions || []).map((p) => p?.symbol), // YENİ: Açıq pozisiyalar bura əlavə edildi
+                ...(openPositions || []).map((p) => p?.symbol),
             ]),
         ].filter(Boolean);
+    }, [watchlist, alerts, openPositions]);
 
+    useEffect(() => {
+        if (view !== 'dashboard' || !token) return;
+        if (dashboardSymbols.length === 0) return;
 
-
-        if (symbols.length === 0) return;
+        let isMounted = true;
 
         const fetchBatchPrices = async () => {
             try {
-                const res = await cryptoApi.getBatchPrices(symbols);
+                const res = await cryptoApi.getBatchPrices(dashboardSymbols);
                 const newPrices = {};
 
                 (res.data || []).forEach((item) => {
@@ -240,19 +287,23 @@ function User() {
                     }
                 });
 
-                setPrices((prev) => ({...prev, ...newPrices}));
+                if (isMounted) {
+                    setPrices((prev) => ({ ...prev, ...newPrices }));
+                }
             } catch (err) {
                 if (err?.response?.status === 401) return;
-                console.error('Batch price fetch xətası:', err);
+                console.error('Batch price fetch error:', err);
             }
         };
 
         fetchBatchPrices();
         const interval = setInterval(fetchBatchPrices, 8000);
 
-        return () => clearInterval(interval);
-
-    }, [view, token, watchlist, alerts, openPositions]);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [view, token, dashboardSymbols]);
 
     useEffect(() => {
         if (!token || view !== 'dashboard') return;
@@ -266,9 +317,27 @@ function User() {
         return () => clearInterval(interval);
     }, [fetchNotifications, token, view]);
 
+    const fetchTelegramStatus = useCallback(async () => {
+        try {
+            const res = await authApi.getTelegramStatus();
+            setTelegramStatus(res?.data || { connected: false, chatId: '' });
+        } catch (err) {
+            if (err?.response?.status === 401) {
+                return;
+            }
+
+            console.error('Telegram status fetch error', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!token || view !== 'dashboard') return;
+        fetchTelegramStatus();
+    }, [token, view, fetchTelegramStatus]);
+
     const handleChange = (e) => {
-        setFormData({...formData, [e.target.name]: e.target.value});
-        if (message.text) setMessage({text: '', type: ''});
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+        if (message.text) setMessage({ text: '', type: '' });
     };
 
     const handleProAnalysis = async (directSymbol = null) => {
@@ -279,7 +348,7 @@ function User() {
             .toUpperCase();
 
         if (!currentSymbol) {
-            toast('Please enter a coin name!', {icon: '⚠️'});
+            toast('Please enter a coin name!', { icon: '⚠️' });
             return;
         }
 
@@ -299,15 +368,6 @@ function User() {
         }
     };
 
-    const fetchTelegramStatus = async () => {
-        try {
-            const res = await authApi.getTelegramStatus();
-            setTelegramStatus(res.data || {connected: false, chatId: ''});
-        } catch (err) {
-            console.error('Telegram status fetch error', err);
-        }
-    };
-
     const handleTelegramDisconnect = async () => {
         if (!window.confirm('Are you sure you want to disconnect Telegram?')) return;
 
@@ -322,7 +382,7 @@ function User() {
 
     const addToWatchlist = async () => {
         if (!portfolioInput || portfolioInput.trim() === '') {
-            toast('Please enter a coin name', {icon: '⚠️'});
+            toast('Please enter a coin name', { icon: '⚠️' });
             return;
         }
 
@@ -364,7 +424,7 @@ function User() {
             toast.success(`${symbolToRemove} removed from portfolio.`);
             await refetchWatchlist();
         } catch (err) {
-            console.error('removeFromWatchlist xətası:', err);
+            console.error('removeFromWatchlist error:', err);
             toast.error('An error occurred while removing the coin.');
         }
     };
@@ -372,44 +432,88 @@ function User() {
     const handleGoogleLogin = async (googleResponse) => {
         if (authLoading) return;
 
+        const credential = googleResponse?.credential;
+
+        if (!credential) {
+            toast.error('Google credential was not received.');
+            return;
+        }
+
         try {
             setAuthLoading(true);
-            const response = await authApi.googleLogin(googleResponse.credential);
+
+            const response = await authApi.googleLogin(credential);
 
             if (response.status === 200) {
-                localStorage.removeItem('token');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
 
                 const data = response.data;
-                const receivedToken = data.token;
+                const accessToken = data?.accessToken;
+                const refreshToken = data?.refreshToken;
 
-                if (!receivedToken) throw new Error('Token not received!');
+                if (!accessToken || !refreshToken) {
+                    throw new Error('Tokens not received');
+                }
 
-                const payload = JSON.parse(atob(receivedToken.split('.')[1]));
-                const userEmailFromToken = payload.sub || payload.email;
-                const userRole = payload.role || 'ROLE_USER';
+                let userEmailFromToken = '';
+                let userRole = 'ROLE_USER';
 
-                localStorage.setItem('token', receivedToken);
-                localStorage.setItem('userEmail', userEmailFromToken);
-                localStorage.setItem(
-                    'user',
-                    JSON.stringify({
-                        id: 1,
-                        email: userEmailFromToken,
-                        premium: false,
-                        role: userRole,
-                    })
-                );
+                try {
+                    const base64Url = accessToken.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join('')));
+                    userEmailFromToken = payload?.sub || payload?.email || '';
+                    userRole = payload?.role || 'ROLE_USER';
+                } catch (decodeError) {
+                    console.error('Google token decode error:', decodeError);
+                }
 
-                toast.success('Google Login successful!');
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', refreshToken);
+
+                if (userEmailFromToken) {
+                    localStorage.setItem('userEmail', userEmailFromToken);
+                }
+
+                localStorage.setItem('user', JSON.stringify({
+                    id: data?.id || null,
+                    email: userEmailFromToken || formData.email || '',
+                    premium: Boolean(data?.premium),
+                    role: userRole,
+                }));
+
+                setAuthState({
+                    token: accessToken,
+                    userEmail: userEmailFromToken || '',
+                });
+
+                setFormData({
+                    email: '',
+                    password: '',
+                    phoneNumber: '',
+                    verificationCode: '',
+                });
+
+                toast.success('Google login successful!');
                 setView('dashboard');
             }
         } catch (error) {
+            if (!error.response) {
+                toast.error('System is currently unreachable (Network Error). Please try again later.');
+                return;
+            }
+
+            const errorData = error.response.data;
             const errorMsg =
-                error.response?.data?.message ||
-                error.response?.data ||
+                errorData?.message ||
+                (typeof errorData === 'string' ? errorData : '') ||
                 'Google Login failed!';
-            toast.error(typeof errorMsg === 'string' ? errorMsg : 'Connection error!');
+
+            toast.error(errorMsg);
         } finally {
             setAuthLoading(false);
         }
@@ -421,10 +525,10 @@ function User() {
 
         const email = formData.email?.trim().toLowerCase();
         const password = formData.password;
-        const rawPhone = (fullPhoneNumber || formData.phoneNumber)?.replace(/\s/g, '');
+        const rawPhone = (fullPhoneNumber || formData.phoneNumber || '').replace(/\s/g, '');
 
-        if (!email || email.length < 2 || email.length > 50) {
-            return toast.error('Email must be between 2 and 50 characters.');
+        if (!email || email.length < 2 || email.length > 100) {
+            return toast.error('Email is invalid.');
         }
 
         const passwordRegex = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).*$/;
@@ -441,6 +545,7 @@ function User() {
 
         try {
             setAuthLoading(true);
+
             const response = await authApi.signup({
                 email,
                 password,
@@ -449,24 +554,40 @@ function User() {
 
             if (response.status === 200 || response.status === 201) {
                 localStorage.setItem('userEmail', email);
+
+                setAuthState((prev) => ({
+                    ...prev,
+                    userEmail: email,
+                }));
+
+                setFormData((prev) => ({
+                    ...prev,
+                    email,
+                    phoneNumber: rawPhone,
+                    verificationCode: '',
+                }));
+
                 toast.success('Registration successful! Code sent to your email.');
-                setFormData((prev) => ({...prev, verificationCode: ''}));
                 setView('otp');
             }
         } catch (error) {
             if (!error.response) {
-                toast.error('Sistem hazırda əlçatmazdır (Network Error). Bir az sonra yoxlayın.');
+                toast.error('System is currently unreachable (Network Error). Please try again later.');
                 return;
             }
 
             const errorData = error.response.data;
             let finalMessage = 'An error occurred during registration!';
 
-            if (typeof errorData === 'string') finalMessage = errorData;
-            else if (errorData?.message) finalMessage = errorData.message;
-            else if (errorData?.errors) finalMessage = Object.values(errorData.errors)[0];
+            if (typeof errorData === 'string') {
+                finalMessage = errorData;
+            } else if (errorData?.message) {
+                finalMessage = errorData.message;
+            } else if (errorData?.errors) {
+                finalMessage = Object.values(errorData.errors)[0];
+            }
 
-            const lowerMessage = finalMessage.toLowerCase();
+            const lowerMessage = String(finalMessage).toLowerCase();
 
             if (lowerMessage.includes('already exists') || lowerMessage.includes('duplicate')) {
                 finalMessage = lowerMessage.includes('email')
@@ -486,7 +607,8 @@ function User() {
         e.preventDefault();
         if (authLoading) return;
 
-        const verificationEmail = formData.email?.trim() || localStorage.getItem('userEmail');
+        const verificationEmail =
+            formData.email?.trim().toLowerCase() || localStorage.getItem('userEmail');
         const normalizedOtp = (formData.verificationCode || '').trim();
 
         if (!verificationEmail) {
@@ -494,27 +616,32 @@ function User() {
             return toast.error('Email not found. Please register again.');
         }
 
-        if (normalizedOtp.length !== 6) {
-            return toast('OTP code must be 6 digits.', {icon: '⚠️'});
+        if (!/^\d{6}$/.test(normalizedOtp)) {
+            return toast('OTP code must be 6 digits.', { icon: '⚠️' });
         }
 
         try {
             setAuthLoading(true);
+
             const response = await authApi.verify(verificationEmail, normalizedOtp);
 
             if (response.status === 200) {
                 toast.success('Account verified! You can now log in.');
-                setFormData((prev) => ({...prev, verificationCode: ''}));
+                setFormData((prev) => ({
+                    ...prev,
+                    verificationCode: '',
+                    password: '',
+                }));
                 setView('login');
             }
         } catch (error) {
+            const errorData = error?.response?.data;
             const errorMsg =
-                error.response?.data?.message ||
-                error.response?.data ||
+                errorData?.message ||
+                (typeof errorData === 'string' ? errorData : '') ||
                 'Code is incorrect or expired!';
-            toast.error(
-                typeof errorMsg === 'string' ? errorMsg : 'Code is incorrect or expired!'
-            );
+
+            toast.error(errorMsg);
         } finally {
             setAuthLoading(false);
         }
@@ -527,76 +654,91 @@ function User() {
         const normalizedEmail = formData.email?.trim().toLowerCase();
 
         if (!normalizedEmail || !formData.password) {
-            return toast('Please enter email and password.', {icon: '⚠️'});
+            return toast('Please enter email and password.', { icon: '⚠️' });
         }
 
         try {
             setAuthLoading(true);
+
             const response = await authApi.login(normalizedEmail, formData.password);
 
             if (response.status === 200) {
-                localStorage.removeItem('token');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
 
                 const data = response.data;
-                const receivedToken = data.token || (typeof data === 'string' ? data : null);
+                const accessToken = data?.accessToken;
+                const refreshToken = data?.refreshToken;
 
-                if (!receivedToken) throw new Error('Token not received!');
+                if (!accessToken || !refreshToken) {
+                    throw new Error('Tokens not received');
+                }
 
-                localStorage.setItem('token', receivedToken);
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', refreshToken);
                 localStorage.setItem('userEmail', normalizedEmail);
 
                 let userRole = 'ROLE_USER';
                 try {
-                    const payload = JSON.parse(atob(receivedToken.split('.')[1]));
-                    userRole = payload.role || 'ROLE_USER';
-                } catch (e) {
-                    console.error('Token decode error', e);
+                    const base64Url = accessToken.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join('')));
+                    userRole = payload?.role || 'ROLE_USER';
+                } catch (decodeError) {
+                    console.error('Token decode error:', decodeError);
                 }
 
                 localStorage.setItem(
                     'user',
                     JSON.stringify({
-                        id: data.id || 1,
+                        id: data?.id || null,
                         email: normalizedEmail,
-                        premium: data.premium || false,
+                        premium: Boolean(data?.premium),
                         role: userRole,
                     })
                 );
+                setAuthState({
+                    token: accessToken,
+                    userEmail: normalizedEmail,
+                });
 
-                toast.success('Login successful!');
                 setFormData({
                     email: '',
                     password: '',
                     phoneNumber: '',
                     verificationCode: '',
                 });
+
+                toast.success('Login successful!');
                 setView('dashboard');
             }
         } catch (error) {
             if (!error.response) {
-                toast.error('Sistem hazırda əlçatmazdır (Network Error). Bir az sonra yoxlayın.');
+                toast.error('System is currently unreachable (Network Error). Please try again later.');
                 return;
             }
 
             const errorData = error.response.data;
             let errorText = 'Incorrect email or password!';
 
-            if (errorData) {
-                const backendMessage =
-                    errorData.message || (typeof errorData === 'string' ? errorData : '');
+            const backendMessage =
+                errorData?.message || (typeof errorData === 'string' ? errorData : '');
 
-                if (
-                    backendMessage.toLowerCase().includes('blocked') ||
-                    backendMessage.toLowerCase().includes('bloklanıb')
-                ) {
+            if (backendMessage) {
+                const lowerMessage = backendMessage.toLowerCase();
+
+                if (lowerMessage.includes('blocked') || lowerMessage.includes('bloklanıb')) {
                     errorText = 'Your account has been blocked by the admin!';
                 } else if (
-                    backendMessage.toLowerCase().includes('verify') ||
-                    backendMessage.toLowerCase().includes('təsdiq')
+                    lowerMessage.includes('verify') ||
+                    lowerMessage.includes('təsdiq') ||
+                    lowerMessage.includes('email təsdiqlənməyib')
                 ) {
                     errorText = 'Please verify your email first!';
-                } else if (backendMessage) {
+                } else {
                     errorText = backendMessage;
                 }
             }
@@ -654,30 +796,35 @@ function User() {
             await cryptoApi.addAlert({
                 symbol: formattedSymbol,
                 targetPrice,
-                chatId: String(telegramStatus.chatId)
+                chatId: String(telegramStatus.chatId),
             });
 
             setAlertInput({ symbol: '', targetPrice: '' });
             toast.success('Price alert added successfully!');
             await refetchAlerts();
         } catch (err) {
-            console.error('addAlert xətası:', err);
+            console.error('addAlert error:', err);
 
             const serverMessage =
                 err?.response?.data?.message ||
                 err?.response?.data ||
                 'An error occurred while adding the alert!';
 
-            toast.error(typeof serverMessage === 'string' ? serverMessage : 'An error occurred while adding the alert!');
+            toast.error(
+                typeof serverMessage === 'string'
+                    ? serverMessage
+                    : 'An error occurred while adding the alert!'
+            );
         }
     };
+
     const initTelegramConnection = async () => {
         try {
             const res = await authApi.initTelegramConnection();
             const connectUrl = res.data?.connectUrl;
 
             if (!connectUrl) {
-                return toast.error('Telegram bağlantısı yaradıla bilmədi');
+                return toast.error('Telegram connection could not be created');
             }
 
             const telegramWindow = window.open(connectUrl, '_blank', 'noopener,noreferrer');
@@ -687,36 +834,48 @@ function User() {
                 telegramWindow.closed ||
                 typeof telegramWindow.closed === 'undefined'
             ) {
-                toast.success('Yönləndirilirsiniz...', {icon: '🔄'});
+                toast.success('Redirecting...', { icon: '🔄' });
                 setTimeout(() => {
                     window.location.href = connectUrl;
                 }, 1000);
             }
         } catch (err) {
-            toast.error('Telegram linki alınarkən xəta baş verdi');
+            toast.error('An error occurred while fetching the Telegram link');
         }
     };
 
     const confirmTelegramConnection = async () => {
         try {
             const res = await authApi.confirmTelegramConnection();
-            setTelegramStatus(res.data || {connected: false, chatId: ''});
+            setTelegramStatus(res.data || { connected: false, chatId: '' });
 
             if (res.data?.connected) {
                 toast.success('Telegram connected successfully');
                 setIsTelegramModalOpen(false);
             } else {
-                toast('Connection not found yet. Please try again.', {icon: '⚠️'});
+                toast('Connection not found yet. Please try again.', { icon: '⚠️' });
             }
         } catch (err) {
             toast.error('An error occurred while checking Telegram status');
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
+    const handleLogout = async () => {
+        try {
+            await authApi.logout();
+        } catch (e) {
+            console.warn('Logout request failed, clearing client state anyway');
+        }
+
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
         localStorage.removeItem('userEmail');
+
+        setAuthState({
+            token: '',
+            userEmail: '',
+        });
 
         setFormData({
             email: '',
@@ -727,7 +886,8 @@ function User() {
 
         setPrices({});
         setSystemMessage('');
-        toast('Logged out', {icon: '👋'});
+        setTelegramStatus({ connected: false, chatId: '' });
+        toast('Logged out', { icon: '👋' });
         setView('login');
         navigate('/');
     };
@@ -737,7 +897,7 @@ function User() {
             const userData = localStorage.getItem('user');
             return userData ? JSON.parse(userData).role === 'ROLE_ADMIN' : false;
         } catch (e) {
-            console.error('Local storage parse xətası:', e);
+            console.error('Local storage parse error:', e);
             return false;
         }
     })();
@@ -746,7 +906,6 @@ function User() {
 
     return (
         <div className="App">
-            {/* AUTH */}
             {isAuthView && (
                 <AuthForm
                     view={view}
@@ -766,21 +925,16 @@ function User() {
                 />
             )}
 
-            {/* DASHBOARD */}
             {view === 'dashboard' && (
                 <DashboardShell
                     isAdmin={isAdmin}
                     navigate={navigate}
                     handleLogout={handleLogout}
-
-                    // modallar
                     setIsSearchOpen={setIsSearchOpen}
                     setIsSentimentOpen={setIsSentimentOpen}
                     setIsLiquidityOpen={setIsLiquidityOpen}
                     setIsWhaleRadarOpen={setIsWhaleRadarOpen}
                     handleTournamentAccess={handleTournamentAccess}
-
-
                     notificationDrawerOpen={notificationDrawerOpen}
                     setNotificationDrawerOpen={setNotificationDrawerOpen}
                     notifications={notifications}
@@ -788,31 +942,20 @@ function User() {
                     notificationLoading={notificationLoading}
                     handleMarkNotificationRead={handleMarkNotificationRead}
                     handleMarkAllNotificationsRead={handleMarkAllNotificationsRead}
-
-
                     systemMessage={systemMessage}
                     closeSystemMessage={closeSystemMessage}
-
                     openPositions={openPositions}
-
-                    // data
                     watchlist={watchlist}
                     alerts={alerts}
                     prices={prices}
-
-                    // state
                     expandedCoin={expandedCoin}
                     setExpandedCoin={setExpandedCoin}
-
-                    // portfolio
                     setIsPortfolioOpen={setIsPortfolioOpen}
                     isPortfolioOpen={isPortfolioOpen}
                     portfolioInput={portfolioInput}
                     setPortfolioInput={setPortfolioInput}
                     addToWatchlist={addToWatchlist}
                     removeFromWatchlist={removeFromWatchlist}
-
-                    // alert
                     isAlertModalOpen={isAlertModalOpen}
                     setIsAlertModalOpen={setIsAlertModalOpen}
                     alertInput={alertInput}
@@ -823,35 +966,27 @@ function User() {
                     setDeleteTarget={setDeleteTarget}
                     confirmDelete={confirmDelete}
                     refetchAlerts={refetchAlerts}
-
-                    // telegram
                     isTelegramModalOpen={isTelegramModalOpen}
                     setIsTelegramModalOpen={setIsTelegramModalOpen}
                     telegramStatus={telegramStatus}
                     handleTelegramDisconnect={handleTelegramDisconnect}
                     initTelegramConnection={initTelegramConnection}
                     confirmTelegramConnection={confirmTelegramConnection}
-
-                    // search / analysis
                     isSearchOpen={isSearchOpen}
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}
                     handleProAnalysis={handleProAnalysis}
-
-                    // chart modal
                     isModalOpen={isModalOpen}
                     setIsModalOpen={setIsModalOpen}
                     chartBase64={chartBase64}
                     symbol={symbol}
-
-                    // digər modallar
                     isSentimentOpen={isSentimentOpen}
                     isLiquidityOpen={isLiquidityOpen}
                     isWhaleRadarOpen={isWhaleRadarOpen}
+                    handleTickerCoinClick={handleTickerCoinClick}
                 />
             )}
 
-            {/* TEST WARNING MODAL */}
             {isTestWarningOpen && (
                 <div className="tw-overlay">
                     <div className="tw-modal">
@@ -895,8 +1030,8 @@ function User() {
                                 onChange={() => setIsChecked((prev) => !prev)}
                             />
                             <span>
-                            I understand that this section is for testing purposes and does not involve real trading activity.
-                        </span>
+                                I understand that this section is for testing purposes and does not involve real trading activity.
+                            </span>
                         </label>
 
                         <div className="tw-actions">
@@ -924,7 +1059,6 @@ function User() {
                 </div>
             )}
 
-            {/* SYSTEM MESSAGE */}
             {systemMessage && (
                 <div
                     style={{
@@ -954,13 +1088,13 @@ function User() {
                                 '0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(59, 130, 246, 0.2)',
                         }}
                     >
-                        <div style={{fontSize: '50px', marginBottom: '15px'}}>📢</div>
+                        <div style={{ fontSize: '50px', marginBottom: '15px' }}>📢</div>
 
-                        <h2 style={{color: '#3b82f6', marginBottom: '15px'}}>
+                        <h2 style={{ color: '#3b82f6', marginBottom: '15px' }}>
                             System Notification
                         </h2>
 
-                        <p style={{color: '#e2e8f0', marginBottom: '30px'}}>
+                        <p style={{ color: '#e2e8f0', marginBottom: '30px' }}>
                             {systemMessage}
                         </p>
 

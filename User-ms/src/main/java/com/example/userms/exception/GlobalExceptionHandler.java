@@ -4,6 +4,7 @@ import com.example.userms.dto.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,9 +35,25 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND, request);
     }
 
-    @ExceptionHandler({WrongPasswordException.class, EmailAlreadyExistsException.class, PhoneNumberAlreadyExistsException.class, WrongCodeException.class})
+    @ExceptionHandler({
+            WrongPasswordException.class,
+            EmailAlreadyExistsException.class,
+            PhoneNumberAlreadyExistsException.class,
+            WrongCodeException.class,
+            BadRequestException.class
+    })
     public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex, WebRequest request) {
         return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
+        return buildResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED, request);
+    }
+
+    @ExceptionHandler({ForbiddenOperationException.class, AccessDeniedException.class})
+    public ResponseEntity<ErrorResponse> handleForbidden(Exception ex, WebRequest request) {
+        return buildResponse(ex.getMessage(), HttpStatus.FORBIDDEN, request);
     }
 
     @ExceptionHandler(Exception.class)

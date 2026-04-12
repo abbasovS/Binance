@@ -1,6 +1,7 @@
 package com.example.userms.controller;
 
 import com.example.userms.dto.request.ChangeRoleRequest;
+import com.example.userms.dto.response.PagedResponse;
 import com.example.userms.dto.response.UserProfileResponse;
 import com.example.userms.service.InboxNotificationService;
 import com.example.userms.service.SystemStateService;
@@ -32,8 +33,16 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<PagedResponse<UserProfileResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(userService.getAllUsers(page, size));
+    }
+
+    @GetMapping("/telegram/chats")
+    public ResponseEntity<List<String>> getAllTelegramChats() {
+        return ResponseEntity.ok(userService.getAllTelegramChatIds());
     }
 
     @PutMapping("/users/{id}/status")
@@ -87,7 +96,7 @@ public class AdminController {
             @AuthenticationPrincipal UserDetails adminDetails
     ) {
         inboxNotificationService.sendLegacyBroadcastMessage(message, adminDetails.getUsername());
-        log.info("📢 Admin tərəfindən həm inbox, həm global announcement yayımlandı");
+        log.info("Admin {} published inbox/global broadcast", adminDetails.getUsername());
         return ResponseEntity.ok("Mesaj uğurla yayımlandı!");
     }
 }

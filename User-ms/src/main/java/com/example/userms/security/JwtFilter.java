@@ -1,29 +1,35 @@
 package com.example.userms.security;
 
+import com.example.userms.model.UserEntity;
+import com.example.userms.repository.UserRepository;
 import com.example.userms.service.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
 
+    private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -31,46 +37,97 @@ public class JwtFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7).trim();
+        if (jwt.isBlank()) {
+            writeUnauthorized(response, "Invalid JWT");
+            return;
+        }
+
+        final String userEmail;
 
         try {
+            String tokenType = jwtService.extractTokenType(jwt);
+            if (!"access".equals(tokenType)) {
+                log.warn("Non-access token used on protected endpoint");
+                writeUnauthorized(response, "Invalid token type");
+                return;
+            }
+
             userEmail = jwtService.extractUsername(jwt);
-        } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.out.println("Tokenin vaxtı bitib, istifadəçi yenidən login olmalıdır.");
-            filterChain.doFilter(request, response);
+        } catch (ExpiredJwtException ex) {
+            log.warn("Expired JWT received for path={}", request.getRequestURI());
+            writeUnauthorized(response, "JWT expired");
             return;
-        } catch (Exception e) {
-            filterChain.doFilter(request, response);
+        } catch (Exception ex) {
+            log.warn("Invalid JWT received for path={}", request.getRequestURI());
+            writeUnauthorized(response, "Invalid JWT");
             return;
         }
 
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+            try {
+                UserEntity user = userRepository.findByEmail(userEmail).orElse(null);
 
+                if (user == null) {
+                    writeUnauthorized(response, "User not found");
+                    return;
+                }
 
-            if (!userDetails.isEnabled()) {
-                System.out.println("Bloklanmış istifadəçi sistemə girməyə cəhd etdi: " + userEmail);
-                filterChain.doFilter(request, response);
+                if (!user.isActive()) {
+                    log.warn("Blocked user attempted access: {}", userEmail);
+                    writeUnauthorized(response, "User account is blocked");
+                    return;
+                }
+
+                UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                        user.getEmail(),
+                        user.getPassword(),
+                        user.isActive(),
+                        true,
+                        true,
+                        true,
+                        List.of(new SimpleGrantedAuthority(user.getRole()))
+                );
+
+                if (jwtService.isTokenValid(jwt, userDetails, user.getTokenVersion())) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    writeUnauthorized(response, "Invalid JWT");
+                    return;
+                }
+            } catch (ExpiredJwtException ex) {
+                log.warn("Expired JWT during authentication for user={}", userEmail);
+                writeUnauthorized(response, "JWT expired");
+                return;
+            } catch (Exception ex) {
+                log.warn("JWT authentication failed for user={}", userEmail);
+                writeUnauthorized(response, "Invalid JWT");
                 return;
             }
-
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
         }
-        filterChain.doFilter(request, response);
 
+        filterChain.doFilter(request, response);
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        SecurityContextHolder.clearContext();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"message\":\"" + message + "\"}");
     }
 }

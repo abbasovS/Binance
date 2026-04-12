@@ -77,11 +77,9 @@ const AppProviders = ({ children }) => {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
-    <React.StrictMode>
-        <AppProviders>
-            <AppRoutes />
-        </AppProviders>
-    </React.StrictMode>
+    <AppProviders>
+        <AppRoutes />
+    </AppProviders>
 );
 
 reportWebVitals();

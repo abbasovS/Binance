@@ -3,9 +3,10 @@ package com.example.userms.controller;
 import com.example.userms.dto.UserRegistrationDto;
 import com.example.userms.dto.request.GoogleLoginRequest;
 import com.example.userms.dto.request.LoginRequest;
-import com.example.userms.dto.request.TelegramConnectRequest;
+import com.example.userms.dto.request.RefreshTokenRequest;
 import com.example.userms.dto.request.UserUpdateRequest;
 import com.example.userms.dto.request.VerifyRequest;
+import com.example.userms.dto.response.AuthResponse;
 import com.example.userms.dto.response.TelegramConnectInitResponse;
 import com.example.userms.dto.response.TelegramStatusResponse;
 import com.example.userms.dto.response.UserProfileResponse;
@@ -19,7 +20,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -46,12 +46,19 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody @Valid LoginRequest loginRequest) {
-        String token = userService.login(loginRequest.getEmail(), loginRequest.getPassword());
+    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
+        return ResponseEntity.ok(userService.login(loginRequest.getEmail(), loginRequest.getPassword()));
+    }
 
-        Map<String, String> response = new HashMap<>();
-        response.put("token", token);
-        return ResponseEntity.ok(response);
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody @Valid RefreshTokenRequest request) {
+        return ResponseEntity.ok(userService.refreshToken(request.getRefreshToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetails currentUser) {
+        userService.logout(currentUser.getUsername());
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/update")
@@ -72,14 +79,6 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile() {
         return ResponseEntity.ok(userService.getMyProfile());
-    }
-
-    @PutMapping("/telegram/connect")
-    public ResponseEntity<TelegramStatusResponse> connectTelegram(
-            @AuthenticationPrincipal UserDetails currentUser,
-            @RequestBody @Valid TelegramConnectRequest request
-    ) {
-        return ResponseEntity.ok(userService.connectTelegram(currentUser.getUsername(), request.getChatId()));
     }
 
     @GetMapping("/telegram/me")
@@ -103,11 +102,6 @@ public class UserController {
         return ResponseEntity.ok(userService.confirmTelegramConnection(currentUser.getUsername()));
     }
 
-    @GetMapping("/telegram/chats")
-    public ResponseEntity<List<String>> getAllTelegramChats() {
-        return ResponseEntity.ok(userService.getAllTelegramChatIds());
-    }
-
     @PostMapping("/telegram/disconnect")
     public ResponseEntity<Void> disconnectTelegram(@AuthenticationPrincipal UserDetails currentUser) {
         userService.disconnectTelegram(currentUser.getUsername());
@@ -123,11 +117,7 @@ public class UserController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<Map<String, String>> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
-        String token = userService.googleLogin(request);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("token", token);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
+        return ResponseEntity.ok(userService.googleLogin(request));
     }
 }

@@ -1,17 +1,40 @@
 databaseChangeLog:
   - include:
-      file: liquibase/1.0/001-create-user-table.yml
+      file: 1.0/001-create-user-table.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: liquibase/1.0/002-create-update-table.yml
+      file: 1.0/002-create-update-table.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: liquibase/1.0/003-add-telegram-chat-id-column.yml
+      file: 1.0/003-add-telegram-chat-id-column.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: liquibase/1.0/004-add-telegram-connect-code-columns.yml
+      file: 1.0/004-add-telegram-connect-code-columns.yml
+      relativeToChangelogFile: true
+
   - include:
-     file: classpath:liquibase/1.0/005-add-role-column.yml
+      file: 1.0/005-add-role-column.yml
+      relativeToChangelogFile: true
+
   - include:
-     file: classpath:liquibase/1.0/006-add-premium-column.yml
+      file: 1.0/006-add-premium-column.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: classpath:liquibase/1.0/007-add-tournament-column.yml
+      file: 1.0/007-add-tournament-column.yml
+      relativeToChangelogFile: true
+
   - include:
-      file: classpath:liquibase/1.0/008-create-notification-table.yml
+      file: 1.0/008-create-notification-table.yml
+      relativeToChangelogFile: true
+
+  - include:
+      file: 1.0/009-add-updated-at-to-users.yml
+      relativeToChangelogFile: true
+
+  - include:
+      file: 1.0/010-add-refresh-token-fields-to-users.yml
+      relativeToChangelogFile: true

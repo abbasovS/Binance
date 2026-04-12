@@ -23,12 +23,20 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    consumer:
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      group-id: notif-group
-      properties:
-        spring.json.trusted.packages: "*"
+    spring:
+      kafka:
+        consumer:
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          group-id: notif-group
+          properties:
+            spring.json.trusted.packages: "com.example.userms.dto"
+
+    app:
+      cors:
+        allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+      telegram:
+        connect-code-ttl-minutes: ${TELEGRAM_CONNECT_CODE_TTL_MINUTES:10}
 
 server:
   port: 8082
@@ -37,7 +45,6 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
-
 
 sentry:
   dsn: ${SENTRY_DSN:}
@@ -50,14 +57,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, metrics
+        include: health,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 jwt:
   secret: ${SECRET_KEY:}
 
 google:
   client:
-    id: "8653359311-tu5l87kp2caq784hhj3omfibln22ldeu.apps.googleusercontent.com"
+    id: ${GOOGLE_CLIENT_ID:}
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}

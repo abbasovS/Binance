@@ -1,86 +1,79 @@
 package com.example.userms.model;
 
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.FieldDefaults;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Data
 @Table(name = "users")
-@AllArgsConstructor
+@Getter
+@Setter
 @NoArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
+@AllArgsConstructor
 @Builder
-public class UserEntity implements UserDetails
-{
+public class UserEntity {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    UUID id;
+    @GeneratedValue
+    private UUID id;
 
-    String email;
-
-    @JsonIgnore
-    String password;
-    String phoneNumber;
-    String telegramChatId;
-    String telegramConnectCode;
-    LocalDateTime telegramConnectCodeCreatedAt;
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;
 
     @Column(nullable = false)
-    boolean premium=false;
+    private String password;
+
+    @Column(nullable = false, unique = true, length = 30)
+    private String phoneNumber;
 
     @Column(nullable = false)
-    private boolean inTournament = false;
-
-    boolean emailVerified = false;
-    String emailVerificationCode;
-
-     boolean phoneVerified = false;
-     LocalDateTime createdAt = LocalDateTime.now();
-
-     boolean active = true;
+    private String role;
 
     @Column(nullable = false)
-    String role = "ROLE_USER";
+    private boolean active;
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(this.role));
-    }
+    @Column(nullable = false)
+    private boolean premium;
 
-    @Override
-    public String getUsername() {
-        return this.email;
-    }
+    @Column(nullable = false)
+    private boolean inTournament;
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    @Column(nullable = false)
+    private boolean emailVerified;
 
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    @Column(nullable = false)
+    private boolean phoneVerified;
 
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true ;
-    }
+    @Column
+    private String emailVerificationCode;
 
-    @Override
-    public boolean isEnabled() {
-        return this.active;
-    }
+    @Column
+    private String telegramChatId;
+
+    @Column
+    private String telegramConnectCode;
+
+    @Column
+    private LocalDateTime telegramConnectCodeCreatedAt;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(nullable = false)
+    private Integer tokenVersion = 0;
+
+    @Column
+    private String refreshToken;
+
+    @Column
+    private LocalDateTime refreshTokenExpiry;
 }

@@ -1,4 +1,4 @@
-import { EXTERNAL_APIS, API_BASES } from './config';
+import { API_BASES, EXTERNAL_APIS } from './config';
 import { apiAxios } from './httpClient';
 
 export const marketApi = {

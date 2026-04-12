@@ -17,9 +17,9 @@ public class TelegramWebHookController {
     private final UserService userService;
 
     @PostMapping("/webhook")
-    public ResponseEntity<?> handleWebhook(@RequestBody Map<String, Object> update) {
+    public ResponseEntity<Void> webhook(@RequestBody Map<String, Object> update) {
+        log.debug("Telegram webhook received");
         userService.handleTelegramWebhook(update);
-
         return ResponseEntity.ok().build();
     }
 }
