@@ -1,17 +1,19 @@
-export const getStoredUser = () => {
+import { jwtDecode } from 'jwt-decode';
+import { getAccessToken } from '../api/httpClient';
+
+export const isAdminUser = () => {
+    const token = getAccessToken();
+
+    if (!token) return false;
+
     try {
-        const raw = localStorage.getItem('user');
-        return raw ? JSON.parse(raw) : null;
+        const decoded = jwtDecode(token);
+        return decoded?.role === 'ROLE_ADMIN';
     } catch {
-        return null;
+        return false;
     }
 };
 
-export const hasToken = () => {
-    return Boolean(localStorage.getItem('accessToken'));
-};
-
-export const isAdminUser = () => {
-    const user = getStoredUser();
-    return user?.role === 'ROLE_ADMIN';
+export const hasAccessToken = () => {
+    return !!getAccessToken();
 };

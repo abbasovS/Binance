@@ -91,7 +91,7 @@ services:
     env_file:
       - ./User-ms/.env
     environment:
-      - SECRET_KEY=R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      SECRET_KEY: R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
     depends_on:
       - user-db
       - kafka
@@ -106,7 +106,8 @@ services:
     env_file:
       - ./Price-ms/.env
     environment:
-      - SECRET_KEY=R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      SECRET_KEY: R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      INTERNAL_API_KEY: super-secret-internal-key
     depends_on:
       - price-db
       - redis
@@ -121,8 +122,8 @@ services:
     env_file:
       - ./Trade-ms/.env
     environment:
-      - SECRET_KEY=R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
-      - PRICE_MS_URL=http://price-ms:8083
+      SECRET_KEY: R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      PRICE_MS_URL: http://price-ms:8083
     depends_on:
       - trade-db
       - kafka
@@ -138,9 +139,9 @@ services:
     env_file:
       - ./News-ms/.env
     environment:
-      - SECRET_KEY=R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
-      - PRICE_SERVICE_URL=http://price-ms:8083
-      - USER_SERVICE_URL=http://user-ms:8082
+      SECRET_KEY: R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      PRICE_SERVICE_URL: http://price-ms:8083
+      USER_SERVICE_URL: http://user-ms:8082
     depends_on:
       - news-db
       - user-ms
@@ -156,7 +157,7 @@ services:
     env_file:
       - ./TechnicalAnalize-ms/.env
     environment:
-      - SECRET_KEY=R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
+      SECRET_KEY: R2VtaW5pZGlyQnVHdW5IYXZhQ294R296ZWxkaXIxMjM0NTY3ODkwMTIz
     depends_on:
       - user-ms
     ports:

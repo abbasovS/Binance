@@ -23,10 +23,5 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID>
 
     Page<UserEntity> findAll(Pageable pageable);
 
-    Optional<UserEntity> findByRefreshToken(String refreshToken);
-
-    Optional<UserEntity> findByEmailAndRefreshToken(String email, String refreshToken);
-
-    boolean existsByRefreshTokenAndRefreshTokenExpiryAfter(String refreshToken, LocalDateTime now);
 
 }

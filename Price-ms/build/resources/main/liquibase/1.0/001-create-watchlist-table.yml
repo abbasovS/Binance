@@ -2,6 +2,11 @@ databaseChangeLog:
   - changeSet:
       id: 20231218-1
       author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: watchlist
       changes:
         - createTable:
             tableName: watchlist
@@ -18,16 +23,20 @@ databaseChangeLog:
                   type: VARCHAR(20)
                   constraints:
                     nullable: false
-                    # DİQQƏT: unique: true BURADAN SİLİNDİ! (Hər kəs eyni coini izləyə bilər)
               - column:
-                  name: user_email # YENİ ƏLAVƏ EDİLDİ
+                  name: user_email
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
 
   - changeSet:
       id: 20231218-2
-      author: Senan
+      author: senan
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            tableExists:
+              tableName: alerts_price
       changes:
         - createTable:
             tableName: alerts_price
@@ -45,19 +54,23 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: user_email # YENİ ƏLAVƏ EDİLDİ (chat_id-nin əvəzinə)
+                  name: user_email
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
               - column:
                   name: target_price
-                  type: numeric(18, 8)
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
               - column:
                   name: side
-                  type: varchar(10)
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
               - column:
                   name: is_triggered
-                  type: boolean
+                  type: BOOLEAN
                   defaultValueBoolean: false
                   constraints:
                     nullable: false

@@ -38,20 +38,26 @@ public class NewsController {
 
     @GetMapping("/global")
     public List<NewsFeedResponse> getGlobalNews(@RequestParam(defaultValue = "20") int limit) {
-        return newsService.getGlobalNews(limit);
+        return newsService.getGlobalNews(normalizeLimit(limit, 20, 100));
     }
 
     @GetMapping("/portfolio")
     public List<NewsFeedResponse> getPortfolioNews(
             @RequestParam String email,
             @RequestParam(defaultValue = "20") int limit) {
-        return newsService.getPortfolioNews(email, limit);
+        return newsService.getPortfolioNews(email, normalizeLimit(limit, 20, 100));
     }
 
     @GetMapping("/latest")
     public List<NewsFeedResponse> getLatestNews(@RequestParam(defaultValue = "40") int limit) {
-        return newsService.getLatestNews(limit);
+        return newsService.getLatestNews(normalizeLimit(limit, 40, 200));
     }
 
 
+    private int normalizeLimit(int requestedLimit, int defaultLimit, int maxLimit) {
+        if (requestedLimit <= 0) {
+            return defaultLimit;
+        }
+        return Math.min(requestedLimit, maxLimit);
+    }
 }

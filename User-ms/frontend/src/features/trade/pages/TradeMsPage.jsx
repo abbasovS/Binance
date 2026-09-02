@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Leaderboard from '../components/Leaderboard';
 import { tradeApi } from '../../../api';
 import '../../../shared/styles/Trade.css';
-import toast from 'react-hot-toast';
+import toast from 'react-hot-toast'
+import { clearAuthStorage } from '../../../api/httpClient';
+import { getAccessToken } from '../../../api/httpClient';
+
+
 const TradeMS = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -39,9 +43,11 @@ const TradeMS = () => {
 
         const verifyUserStatus = async () => {
             setIsChecking(true);
+
             try {
                 if (!userEmail || userEmail === 'guest') {
                     await fetchTraders();
+
                     if (isMounted) {
                         setIsRegistered(false);
                         setIsChecking(false);
@@ -49,10 +55,31 @@ const TradeMS = () => {
                     return;
                 }
 
-                const [, userRes] = await Promise.all([
-                    fetchTraders(),
-                    tradeApi.getCurrentUser().catch(() => ({ data: null }))
-                ]);
+                let userRes;
+
+                try {
+                    const results = await Promise.all([
+                        fetchTraders(),
+                        tradeApi.getCurrentUser()
+                    ]);
+                    userRes = results[1];
+                } catch (err) {
+                    if (!isMounted) return;
+
+                    if (err?.response?.status === 401) {
+                        clearAuthStorage();
+                        toast.error("Session expired. Please log in again.");
+                        navigate('/');
+                        return;
+                    }
+
+                    if (err?.response?.status === 404) {
+                        userRes = { data: null };
+                    } else {
+                        console.error("User fetch error:", err);
+                        userRes = { data: null };
+                    }
+                }
 
                 if (!isMounted) return;
 
@@ -65,25 +92,49 @@ const TradeMS = () => {
                     localStorage.setItem('currentUsername', myData.username);
 
                     tradeApi.getWithdrawBalance()
-                        .then(res => { if (isMounted) setRealBalance(Number(res.data || 0)); })
-                        .catch(e => console.log("Real balance could not be read", e));
+                        .then((res) => {
+                            if (isMounted) {
+                                setRealBalance(Number(res.data || 0));
+                            }
+                        })
+                        .catch((err) => {
+                            if (err?.response?.status === 401) {
+                                clearAuthStorage();
+                                toast.error("Session expired. Please log in again.");
+                                navigate('/');
+                                return;
+                            }
+
+                            console.log("Real balance could not be read", err);
+                        });
                 } else {
                     setIsRegistered(false);
                 }
-
             } catch (err) {
-                if (isMounted) setIsRegistered(false);
+                if (!isMounted) return;
+
+                if (err?.response?.status === 401) {
+                    clearAuthStorage();
+                    toast.error("Session expired. Please log in again.");
+                    navigate('/');
+                    return;
+                }
+
+                setIsRegistered(false);
                 console.error("Error checking tournament status:", err);
             } finally {
-                if (isMounted) setIsChecking(false);
+                if (isMounted) {
+                    setIsChecking(false);
+                }
             }
         };
 
         verifyUserStatus();
 
-        return () => { isMounted = false; };
-    }, [userEmail, fetchTraders]);
-
+        return () => {
+            isMounted = false;
+        };
+    }, [userEmail, fetchTraders, navigate]);
     const handleWithdraw = async () => {
         const wallet = walletAddress.trim();
         if (!wallet) return toast.error("Please enter a wallet address.");
@@ -145,7 +196,7 @@ const TradeMS = () => {
 
         } catch (error) {
             if (error.response?.status === 401) {
-                localStorage.clear();
+                clearAuthStorage();
                 toast.error("Session expired. Please log in again.");
                 navigate('/');
                 return;
@@ -157,6 +208,14 @@ const TradeMS = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        const token = getAccessToken();
+
+        if (!token) {
+            navigate('/');
+        }
+    }, [navigate]);
 
     const handleStartTrade = () => navigate('/terminal');
     const handleClose = () => navigate(-1);

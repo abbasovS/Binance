@@ -8,7 +8,6 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-
 import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -32,6 +31,13 @@ public class JwtService {
     public void validateSecret() {
         if (secretKey == null || secretKey.isBlank()) {
             throw new IllegalStateException("JWT secret boş ola bilməz");
+        }
+
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            Keys.hmacShaKeyFor(keyBytes);
+        } catch (Exception e) {
+            throw new IllegalStateException("JWT secret düzgün Base64 formatında və kifayət qədər uzun deyil", e);
         }
     }
 

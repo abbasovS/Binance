@@ -32,6 +32,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -222,7 +224,7 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("İstifadəçi tapılmadı"));
 
         user.setActive(false);
-        user.setRefreshToken(null);
+        user.setRefreshTokenHash(null);
         user.setRefreshTokenExpiry(null);
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
@@ -380,7 +382,7 @@ public class UserService {
         user.setActive(newActiveStatus);
 
         if (!newActiveStatus) {
-            user.setRefreshToken(null);
+            user.setRefreshTokenHash(null);
             user.setRefreshTokenExpiry(null);
             user.setTokenVersion(user.getTokenVersion() + 1);
         }
@@ -402,10 +404,16 @@ public class UserService {
             throw new ForbiddenOperationException("Öz rolunuzu dəyişdirə bilməzsiniz!");
         }
 
-        user.setRole(newRole);
+        String normalizedRole = newRole == null ? "" : newRole.trim().toUpperCase();
+
+        if (!List.of("ROLE_USER", "ROLE_ADMIN", "ROLE_PREMIUM").contains(normalizedRole)) {
+            throw new BadRequestException("Yalnız ROLE_USER, ROLE_ADMIN və ROLE_PREMIUM qəbul edilir");
+        }
+
+        user.setRole(normalizedRole);
         userRepository.save(user);
 
-        log.info("Admin {} changed role of user {} to {}", adminEmail, user.getEmail(), newRole);
+        log.info("Admin {} changed role of user {} to {}", adminEmail, user.getEmail(), normalizedRole);
     }
 
     @Transactional
@@ -565,15 +573,23 @@ public class UserService {
             throw new UnauthorizedException("Refresh token etibarsızdır");
         }
 
-        UserEntity user = userRepository.findByEmailAndRefreshToken(email, rawRefreshToken)
+        UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UnauthorizedException("Refresh token etibarsızdır"));
 
         if (!user.isActive()) {
             throw new ForbiddenOperationException("Sizin hesabınız admin tərəfindən bloklanıb!");
         }
 
-        if (user.getRefreshTokenExpiry() == null || user.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
+        if (user.getRefreshTokenHash() == null || user.getRefreshTokenExpiry() == null) {
+            throw new UnauthorizedException("Refresh token etibarsızdır");
+        }
+
+        if (user.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new UnauthorizedException("Refresh token vaxtı bitib");
+        }
+
+        if (!sha256(rawRefreshToken).equals(user.getRefreshTokenHash())) {
+            throw new UnauthorizedException("Refresh token etibarsızdır");
         }
 
         if (!jwtService.isTokenValid(rawRefreshToken, buildSecurityUser(user), user.getTokenVersion())) {
@@ -582,13 +598,12 @@ public class UserService {
 
         return issueTokens(user);
     }
-
     @Transactional
     public void logout(String email) {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("İstifadəçi tapılmadı"));
 
-        user.setRefreshToken(null);
+        user.setRefreshTokenHash(null);
         user.setRefreshTokenExpiry(null);
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
@@ -610,7 +625,7 @@ public class UserService {
         String accessToken = jwtService.generateAccessToken(user.getEmail(), user.getRole(), user.getTokenVersion());
         String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getTokenVersion());
 
-        user.setRefreshToken(refreshToken);
+        user.setRefreshTokenHash(sha256(refreshToken));  // BCrypt əvəzinə SHA-256
         user.setRefreshTokenExpiry(jwtService.getRefreshExpiryDateTime());
         userRepository.save(user);
 
@@ -620,6 +635,7 @@ public class UserService {
                 .build();
     }
 
+
     private String buildGooglePlaceholderPhone() {
         String value = "+999" + UUID.randomUUID().toString().replace("-", "").substring(0, 9);
         if (userRepository.existsByPhoneNumber(value)) {
@@ -627,4 +643,13 @@ public class UserService {
         }
         return value;
     }
-}
+
+    private String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("SHA-256 hash xətası", e);
+        }
+}}

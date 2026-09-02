@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { jwtDecode } from 'jwt-decode';
 
 import '../../../shared/styles/App.css';
 import '../../../shared/styles/Auth.css';
@@ -10,13 +11,13 @@ import '../../../shared/styles/Trade.css';
 import AuthForm from '../components/AuthForm';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import { authApi, cryptoApi, notificationApi, tradeApi } from '../../../api';
+import { setAccessToken, getAccessToken, clearAuthStorage } from '../../../api/httpClient';
 
 function User() {
     const navigate = useNavigate();
 
-    // UI states
     const [view, setView] = useState(() =>
-        localStorage.getItem('accessToken') ? 'dashboard' : 'login'
+        getAccessToken() ? 'dashboard' : 'login'
     );
     const [isLiquidityOpen, setIsLiquidityOpen] = useState(false);
     const [isTestWarningOpen, setIsTestWarningOpen] = useState(false);
@@ -29,13 +30,11 @@ function User() {
     const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
     const [isSentimentOpen, setIsSentimentOpen] = useState(false);
 
-    // ADMIN
     const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
     const [notificationLoading, setNotificationLoading] = useState(false);
 
-    // Data states
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [expandedCoin, setExpandedCoin] = useState(null);
     const [chartBase64, setChartBase64] = useState(null);
@@ -47,7 +46,6 @@ function User() {
     const [telegramStatus, setTelegramStatus] = useState({ connected: false, chatId: '' });
     const [prices, setPrices] = useState({});
 
-    // Auth states
     const [message, setMessage] = useState({ text: '', type: '' });
     const [authLoading, setAuthLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -58,7 +56,7 @@ function User() {
     });
 
     const [authState, setAuthState] = useState(() => ({
-        token: localStorage.getItem('accessToken') || '',
+        token: getAccessToken() || '',
         userEmail: localStorage.getItem('userEmail') || '',
     }));
 
@@ -68,17 +66,19 @@ function User() {
     useEffect(() => {
         const syncAuthState = () => {
             setAuthState({
-                token: localStorage.getItem('accessToken') || '',
+                token: getAccessToken() || '',
                 userEmail: localStorage.getItem('userEmail') || '',
             });
         };
 
         window.addEventListener('storage', syncAuthState);
         window.addEventListener('auth-error', syncAuthState);
+        window.addEventListener('auth-state-changed', syncAuthState);
 
         return () => {
             window.removeEventListener('storage', syncAuthState);
             window.removeEventListener('auth-error', syncAuthState);
+            window.removeEventListener('auth-state-changed', syncAuthState);
         };
     }, []);
 
@@ -109,7 +109,8 @@ function User() {
     useQuery({
         queryKey: ['systemInfo', userEmail || 'guest'],
         queryFn: () => authApi.getSystemInfo().then((res) => res.data),
-        refetchInterval: 10000,
+        enabled: view === 'dashboard' && !!token,
+        refetchInterval: view === 'dashboard' && !!token ? 10000 : false,
         onSuccess: (data) => {
             const msg = data?.globalMessage;
             const storageKey = userEmail
@@ -133,15 +134,10 @@ function User() {
         setSystemMessage('');
     };
 
-
-
-
     const handleTickerCoinClick = (coinSymbol) => {
         if (!coinSymbol) return;
         handleProAnalysis(coinSymbol);
     };
-
-
 
     const fetchNotifications = useCallback(async () => {
         if (!token) return;
@@ -157,11 +153,8 @@ function User() {
             setNotifications(listRes?.data?.content || []);
             setNotificationUnreadCount(countRes?.data?.unreadCount || 0);
         } catch (err) {
-            if (err?.response?.status === 401) {
-                return;
-            }
+            if (err?.response?.status === 401) return;
 
-            console.error('Notification fetch error:', err);
         } finally {
             setNotificationLoading(false);
         }
@@ -188,11 +181,6 @@ function User() {
 
     useEffect(() => {
         const handleAuthError = () => {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
-            localStorage.removeItem('userEmail');
-
             setAuthState({
                 token: '',
                 userEmail: '',
@@ -240,12 +228,14 @@ function User() {
     };
 
     useEffect(() => {
-        if (token && (view === 'login' || view === 'signup' || view === 'otp')) {
-            setView('dashboard');
-        } else if (!token && view === 'dashboard') {
-            setView('login');
+        if (token) {
+            setView((prev) =>
+                prev === 'login' || prev === 'signup' || prev === 'otp' ? 'dashboard' : prev
+            );
+        } else {
+            setView((prev) => (prev === 'dashboard' ? 'login' : prev));
         }
-    }, [token, view]);
+    }, [token]);
 
     const dashboardSymbols = useMemo(() => {
         return [
@@ -292,7 +282,6 @@ function User() {
                 }
             } catch (err) {
                 if (err?.response?.status === 401) return;
-                console.error('Batch price fetch error:', err);
             }
         };
 
@@ -318,17 +307,18 @@ function User() {
     }, [fetchNotifications, token, view]);
 
     const fetchTelegramStatus = useCallback(async () => {
+        if (!token) return;
+
         try {
             const res = await authApi.getTelegramStatus();
             setTelegramStatus(res?.data || { connected: false, chatId: '' });
         } catch (err) {
-            if (err?.response?.status === 401) {
-                return;
+            if (err?.response?.status === 401) return;
+            if (process.env.NODE_ENV === 'development') {
+                console.error('Telegram status fetch error', err);
             }
-
-            console.error('Telegram status fetch error', err);
         }
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         if (!token || view !== 'dashboard') return;
@@ -424,12 +414,11 @@ function User() {
             toast.success(`${symbolToRemove} removed from portfolio.`);
             await refetchWatchlist();
         } catch (err) {
-            console.error('removeFromWatchlist error:', err);
             toast.error('An error occurred while removing the coin.');
         }
     };
 
-    const handleGoogleLogin = async (googleResponse) => {
+    const handleGoogleLogin = useCallback(async (googleResponse) => {
         if (authLoading) return;
 
         const credential = googleResponse?.credential;
@@ -445,46 +434,25 @@ function User() {
             const response = await authApi.googleLogin(credential);
 
             if (response.status === 200) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-
                 const data = response.data;
                 const accessToken = data?.accessToken;
-                const refreshToken = data?.refreshToken;
 
-                if (!accessToken || !refreshToken) {
-                    throw new Error('Tokens not received');
+                if (!accessToken) {
+                    throw new Error('Access token not received');
                 }
+
+                setAccessToken(accessToken);
 
                 let userEmailFromToken = '';
-                let userRole = 'ROLE_USER';
-
                 try {
-                    const base64Url = accessToken.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(decodeURIComponent(window.atob(base64).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join('')));
-                    userEmailFromToken = payload?.sub || payload?.email || '';
-                    userRole = payload?.role || 'ROLE_USER';
+                    const decoded = jwtDecode(accessToken);
+                    userEmailFromToken = decoded?.sub || decoded?.email || '';
                 } catch (decodeError) {
-                    console.error('Google token decode error:', decodeError);
                 }
-
-                localStorage.setItem('accessToken', accessToken);
-                localStorage.setItem('refreshToken', refreshToken);
 
                 if (userEmailFromToken) {
                     localStorage.setItem('userEmail', userEmailFromToken);
                 }
-
-                localStorage.setItem('user', JSON.stringify({
-                    id: data?.id || null,
-                    email: userEmailFromToken || formData.email || '',
-                    premium: Boolean(data?.premium),
-                    role: userRole,
-                }));
 
                 setAuthState({
                     token: accessToken,
@@ -517,7 +485,7 @@ function User() {
         } finally {
             setAuthLoading(false);
         }
-    };
+    }, [authLoading]);
 
     const handleSignup = async (e, fullPhoneNumber) => {
         e.preventDefault();
@@ -663,46 +631,28 @@ function User() {
             const response = await authApi.login(normalizedEmail, formData.password);
 
             if (response.status === 200) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-
                 const data = response.data;
                 const accessToken = data?.accessToken;
-                const refreshToken = data?.refreshToken;
 
-                if (!accessToken || !refreshToken) {
-                    throw new Error('Tokens not received');
+                if (!accessToken) {
+                    throw new Error('Access token not received');
                 }
 
-                localStorage.setItem('accessToken', accessToken);
-                localStorage.setItem('refreshToken', refreshToken);
-                localStorage.setItem('userEmail', normalizedEmail);
+                setAccessToken(accessToken);
 
-                let userRole = 'ROLE_USER';
+                let userEmailFromToken = normalizedEmail;
                 try {
-                    const base64Url = accessToken.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(decodeURIComponent(window.atob(base64).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join('')));
-                    userRole = payload?.role || 'ROLE_USER';
+                    const decoded = jwtDecode(accessToken);
+                    userEmailFromToken = decoded?.sub || decoded?.email || normalizedEmail;
                 } catch (decodeError) {
                     console.error('Token decode error:', decodeError);
                 }
 
-                localStorage.setItem(
-                    'user',
-                    JSON.stringify({
-                        id: data?.id || null,
-                        email: normalizedEmail,
-                        premium: Boolean(data?.premium),
-                        role: userRole,
-                    })
-                );
+                localStorage.setItem('userEmail', userEmailFromToken);
+
                 setAuthState({
                     token: accessToken,
-                    userEmail: normalizedEmail,
+                    userEmail: userEmailFromToken,
                 });
 
                 setFormData({
@@ -867,23 +817,13 @@ function User() {
             console.warn('Logout request failed, clearing client state anyway');
         }
 
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userEmail');
-
-        setAuthState({
-            token: '',
-            userEmail: '',
-        });
-
+        clearAuthStorage();
         setFormData({
             email: '',
             password: '',
             phoneNumber: '',
             verificationCode: '',
         });
-
         setPrices({});
         setSystemMessage('');
         setTelegramStatus({ connected: false, chatId: '' });
@@ -892,18 +832,18 @@ function User() {
         navigate('/');
     };
 
-    const isAdmin = (() => {
+    const isAdmin = useMemo(() => {
+        if (!token) return false;
+
         try {
-            const userData = localStorage.getItem('user');
-            return userData ? JSON.parse(userData).role === 'ROLE_ADMIN' : false;
-        } catch (e) {
-            console.error('Local storage parse error:', e);
+            const decoded = jwtDecode(token);
+            return decoded?.role === 'ROLE_ADMIN';
+        } catch {
             return false;
         }
-    })();
+    }, [token]);
 
     const isAuthView = view === 'signup' || view === 'login' || view === 'otp';
-
     return (
         <div className="App">
             {isAuthView && (

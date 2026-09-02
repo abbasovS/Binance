@@ -3,6 +3,7 @@ package com.example.userms.security;
 import com.example.userms.model.UserEntity;
 import com.example.userms.repository.UserRepository;
 import com.example.userms.service.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -110,11 +113,11 @@ public class JwtFilter extends OncePerRequestFilter {
                     return;
                 }
             } catch (ExpiredJwtException ex) {
-                log.warn("Expired JWT during authentication for user={}", userEmail);
+                log.warn("JWT authentication failed for user={}, reason={}", userEmail, ex.getMessage());
                 writeUnauthorized(response, "JWT expired");
                 return;
             } catch (Exception ex) {
-                log.warn("JWT authentication failed for user={}", userEmail);
+                log.warn("Invalid JWT received for path={}, reason={}", request.getRequestURI(), ex.getMessage());
                 writeUnauthorized(response, "Invalid JWT");
                 return;
             }
@@ -128,6 +131,6 @@ public class JwtFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write("{\"message\":\"" + message + "\"}");
+        objectMapper.writeValue(response.getWriter(), Map.of("message", message));
     }
 }

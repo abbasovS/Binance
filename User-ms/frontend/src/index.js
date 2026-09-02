@@ -9,20 +9,29 @@ import './index.css';
 import AppRoutes from './app/AppRoutes';
 import { APP_CONFIG } from './api/config';
 import reportWebVitals from './reportWebVitals';
+import AuthBootstrap from './app/AuthBootstrap';
 
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            retry: 1,
-            refetchOnWindowFocus: false
-        }
-    }
+            retry: (failureCount, error) => {
+                const status = error?.response?.status;
+
+                if (status === 401 || status === 403 || status === 404) {
+                    return false;
+                }
+
+                return failureCount < 1;
+            },
+            refetchOnWindowFocus: false,
+        },
+    },
 });
 
 if (process.env.NODE_ENV === 'development') {
     window.__REACT_ERROR_OVERLAY_GLOBAL_HOOK_OKAY_OH_M_G__ = {
         handleRuntimeError: () => {},
-        handleUnhandledRejection: () => {}
+        handleUnhandledRejection: () => {},
     };
 
     const originalError = window.onerror;
@@ -51,15 +60,17 @@ const AppProviders = ({ children }) => {
                         boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                     },
                     success: {
-                        iconTheme: { primary: '#00ffa3', secondary: '#000' }
+                        iconTheme: { primary: '#00ffa3', secondary: '#000' },
                     },
                     error: {
                         iconTheme: { primary: '#f84960', secondary: '#fff' },
-                        duration: 4000
-                    }
+                        duration: 4000,
+                    },
                 }}
             />
-            <BrowserRouter>{children}</BrowserRouter>
+            <BrowserRouter>
+                <AuthBootstrap>{children}</AuthBootstrap>
+            </BrowserRouter>
         </QueryClientProvider>
     );
 

@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-rename-refresh-token-to-hash
+      author: senan
+      changes:
+        - renameColumn:
+            tableName: users
+            oldColumnName: refresh_token
+            newColumnName: refresh_token_hash
+            columnDataType: varchar(255)

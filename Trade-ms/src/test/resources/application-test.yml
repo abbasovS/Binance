@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:tradems;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  liquibase:
+    enabled: false
+  kafka:
+    bootstrap-servers: localhost:9092
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+SECRET_KEY: dHJhZGUtbXMtdGVzdC1zZWNyZXQta2V5LTEyMzQ1Njc4OTA=
+PRICE_MS_URL: http://localhost:8083
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000

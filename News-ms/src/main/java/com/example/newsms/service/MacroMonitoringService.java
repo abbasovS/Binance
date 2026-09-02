@@ -73,7 +73,13 @@ public class MacroMonitoringService {
 
                 // Batch-lər arasında qısa fasilə — rate limit üçün:
                 if (i + batchSize < filtered.size()) {
-                    Thread.sleep(1000); // 1 saniyə
+                    try {
+                        Thread.sleep(1000); // 1 saniyə
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("News batch processing interrupted");
+                        return;
+                    }
                 }
             }
 

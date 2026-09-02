@@ -2,6 +2,8 @@ package com.spring.security.pricems.repository;
 
 
 import com.spring.security.pricems.dao.dto.model.PriceAlert;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,6 +14,8 @@ public interface AlertRepository extends JpaRepository<PriceAlert, Long> {
 
     List<PriceAlert> findAllByUserEmail(String userEmail);
     Optional<PriceAlert> findByIdAndUserEmail(Long id, String userEmail);
+
+    Page<PriceAlert> findAllByIsTriggeredFalse(Pageable pageable);
 
 
 }

@@ -31,6 +31,10 @@ services:
   price-ms:
     url: ${PRICE_SERVICE_URL:http://localhost:8083}
 
+internal:
+  api:
+    key: ${INTERNAL_API_KEY:super-secret-internal-key}
+
 
 cryptopanic:
   api:

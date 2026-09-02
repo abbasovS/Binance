@@ -1,11 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { hasToken } from './routeGuards';
+import { hasAccessToken } from './routeGuards';
+import { useAuthReady } from './AuthReadyContext';
 
 const ProtectedRoute = ({ children }) => {
     const location = useLocation();
+    const authReady = useAuthReady();
 
-    if (!hasToken()) {
+    if (!authReady) {
+        return null;
+    }
+
+    if (!hasAccessToken()) {
         return <Navigate to="/" replace state={{ from: location.pathname }} />;
     }
 

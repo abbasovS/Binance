@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,11 +30,8 @@ public class GlobalExceptionHandle {
     }
 
     @ExceptionHandler(CryptoException.class)
-    public ResponseEntity<ErrorResponse> handleGeneral(CryptoException ex, HttpServletRequest request) {
-        HttpStatus status = "Invalid internal API key".equalsIgnoreCase(ex.getMessage())
-                ? HttpStatus.FORBIDDEN
-                : HttpStatus.BAD_REQUEST;
-        return buildResponse(status, ex.getMessage(), request.getRequestURI());
+    public ResponseEntity<ErrorResponse> handleCrypto(CryptoException ex, HttpServletRequest request) {
+        return buildResponse(ex.getStatus(), ex.getMessage(), request.getRequestURI());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,9 +49,14 @@ public class GlobalExceptionHandle {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied", request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobal(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        log.error("Unhandled exception path={}", request.getRequestURI(), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Daxili server xətası baş verdi.", request.getRequestURI());
     }
 

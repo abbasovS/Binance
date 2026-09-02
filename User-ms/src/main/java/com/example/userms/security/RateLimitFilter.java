@@ -1,7 +1,7 @@
 package com.example.userms.security;
 
-
 import com.example.userms.config.RateLimitConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -34,6 +35,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Qualifier("telegramWebhookBuckets")
     private final Map<String, Bucket> telegramWebhookBuckets;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -84,7 +87,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         boolean allowed = bucket.tryConsume(1);
 
         if (!allowed) {
-            log.warn("Rate limit exceeded. key={}", key);
+            log.warn("Rate limit exceeded. key={}, capacity={}, duration={}", key, capacity, duration);
         }
 
         return allowed;
@@ -99,9 +102,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private void writeTooManyRequests(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        response.getWriter().write("{\"message\":\"" + message + "\"}");
+        objectMapper.writeValue(response.getWriter(), Map.of("message", message));
     }
 }

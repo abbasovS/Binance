@@ -38,3 +38,7 @@ databaseChangeLog:
   - include:
       file: 1.0/010-add-refresh-token-fields-to-users.yml
       relativeToChangelogFile: true
+
+  - include:
+      file: 1.0/011-rename-refresh-token-to-hash.yml
+      relativeToChangelogFile: true

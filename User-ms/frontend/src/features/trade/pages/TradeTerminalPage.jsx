@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { marketApi, tradeApi } from '../../../api';
 import toast from "react-hot-toast";
+import { getAccessToken, clearAuthStorage } from '../../../api/httpClient';
 
 const TOAST_ERROR_STYLE = {
     icon: '📢',
@@ -27,7 +28,8 @@ const TradeTerminal = () => {
     const navigate = useNavigate();
 
     const [balance, setBalance] = useState(() => {
-        return Number(localStorage.getItem(`userBalance_${localStorage.getItem('userEmail') || 'guest'}`)) || 10000;
+        const storedEmail = localStorage.getItem('userEmail') || 'guest';
+        return Number(localStorage.getItem(`userBalance_${storedEmail}`)) || 10000;
     });
 
     const [symbol, setSymbol] = useState("BTCUSDT");
@@ -60,22 +62,13 @@ const TradeTerminal = () => {
 
     const startResizing = () => setIsDragging(true);
 
-    const clearAuthStorage = () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userEmail');
-    };
-
     const fetchUserData = useCallback(async () => {
-        const token = localStorage.getItem('accessToken');
-        const refreshToken = localStorage.getItem('refreshToken');
+        const token = getAccessToken();
 
-        if (!token || !refreshToken) {
+        if (!token) {
             setUser(null);
             return;
         }
-
         try {
             const res = await tradeApi.getCurrentUser();
             const currentUser = res.data;
@@ -105,39 +98,42 @@ const TradeTerminal = () => {
     }, [navigate]);
 
     const fetchData = useCallback(async () => {
-        const token = localStorage.getItem('accessToken');
-        const refreshToken = localStorage.getItem('refreshToken');
+        const token = getAccessToken();
 
-        if (!token || !refreshToken) {
+        if (!token) {
             setPositions([]);
             setPendingOrders([]);
             setUser(null);
             return;
         }
 
+
+        let posRes, pendRes;
+
         try {
-            const [posRes, pendRes] = await Promise.all([
-                tradeApi.getActiveTrades().catch(() => ({data: []})),
-                tradeApi.getPendingTrades().catch(() => ({data: []}))
+            [posRes, pendRes] = await Promise.all([
+                tradeApi.getActiveTrades(),
+                tradeApi.getPendingTrades()
             ]);
-
-            setPositions(posRes.data || []);
-            setPendingOrders(pendRes.data || []);
         } catch (err) {
-            console.error("Trade fetch error:", err);
-
-            if (err.response?.status === 401) {
-                console.warn("401 received in fetchData - interceptor should handle refresh.");
-                return;
+            if (err?.response?.status === 401) {
+                return; // interceptor handle edir
             }
 
+            console.error("Trade fetch error:", err);
             toast.error("Failed to load trades.");
+            return;
         }
+        setPositions(posRes?.data || []);
+        setPendingOrders(pendRes?.data || []);
     }, []);
 
     const handleOpenTrade = async (side) => {
-        const token = localStorage.getItem('accessToken');
-        if (!token) return toast.error("You are not logged in!");
+        const token = getAccessToken();
+
+        if (!token) {
+            return toast.error("You are not logged in!");
+        }
 
         const marginVal = safeParseNumber(amount);
         const targetPriceVal = safeParseNumber(targetPrice);
@@ -262,7 +258,7 @@ const TradeTerminal = () => {
         fetchData();
 
         const interval = setInterval(() => {
-            if (document.visibilityState === 'visible') {
+            if (!document.hidden) {
                 fetchUserData();
                 fetchData();
             }
@@ -323,13 +319,23 @@ const TradeTerminal = () => {
         const chartContainer = container.current;
         if (!chartContainer) return;
 
-        chartContainer.innerHTML = '';
+        // container təmizlənir
+        chartContainer.replaceChildren();
+
+        // TradingView üçün xüsusi div yaradılır
+        const widgetDiv = document.createElement("div");
+        widgetDiv.id = "tradingview_chart";
+        widgetDiv.style.height = "100%";
+        widgetDiv.style.width = "100%";
+
+        chartContainer.appendChild(widgetDiv);
 
         const script = document.createElement("script");
         script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
         script.type = "text/javascript";
         script.async = true;
-        script.innerHTML = JSON.stringify({
+
+        script.text = JSON.stringify({
             autosize: true,
             symbol: `BINANCE:${symbol}`,
             interval: "15",
@@ -343,12 +349,24 @@ const TradeTerminal = () => {
         chartContainer.appendChild(script);
 
         return () => {
-            if (chartContainer) {
-                chartContainer.innerHTML = '';
-            }
+            chartContainer.replaceChildren();
         };
     }, [symbol]);
 
+
+    useEffect(() => {
+        const token = getAccessToken();
+
+        if (!token) {
+            const timeout = setTimeout(() => {
+                if (!getAccessToken()) {
+                    navigate('/');
+                }
+            }, 300);
+
+            return () => clearTimeout(timeout);
+        }
+    }, [navigate]);
     const renderEditModal = () => {
         if (!isEditModalOpen || !selectedPosition) return null;
 

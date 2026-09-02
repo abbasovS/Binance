@@ -36,6 +36,12 @@ public class JwtService {
         }
     }
 
+    public String extractRole(String token) {
+        Claims claims = extractAllClaims(token);
+        Object role = claims.get("role");
+        return role == null ? null : String.valueOf(role);
+    }
+
     private boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new java.util.Date());
     }

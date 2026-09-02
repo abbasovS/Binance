@@ -74,11 +74,16 @@ public class SecurityConfig {
                 .filter(origin -> !origin.isBlank())
                 .collect(Collectors.toList());
 
-        configuration.setAllowedOrigins(origins);
+        boolean containsPatternOrigin = origins.stream().anyMatch(origin -> origin.contains("*"));
+        if (containsPatternOrigin) {
+            configuration.setAllowedOriginPatterns(origins);
+        } else {
+            configuration.setAllowedOrigins(origins);
+        }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

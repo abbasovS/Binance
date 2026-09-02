@@ -21,7 +21,7 @@ spring:
         corsConfigurations:
           '[/**]':
             allowedOrigins:
-              - ${FRONTEND_ORIGIN:http://localhost:3000}
+              - ${FRONTEND_ORIGIN:${CORS_ALLOWED_ORIGIN:http://localhost:3000}}
               - http://127.0.0.1:3000
               - http://localhost
             allowedMethods:
@@ -35,6 +35,7 @@ spring:
               - "*"
             exposedHeaders:
               - Authorization
+              - Set-Cookie
             allowCredentials: true
 
       routes:

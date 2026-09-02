@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import GoogleAuthButton from './GoogleAuthButton';
 
 const AuthForm = ({
                       view,
@@ -101,7 +101,7 @@ const AuthForm = ({
                             </div>
                             <h2 style={{ color: '#fff', fontSize: '24px', fontWeight: '900', margin: '0 0 10px', letterSpacing: '0.5px' }}>Verify Email</h2>
                             <p style={{ color: '#888', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
-                                For security, please enter the 6-digit code sent to <b>{formData.email || 'your email address'}</b>.
+                                For security, please enter the 6-digit code sent to<b>{formData.email?.trim() || 'your email address'}</b>
                             </p>
                         </div>
 
@@ -118,8 +118,11 @@ const AuthForm = ({
 
                         <form onSubmit={(e) => {
                             e.preventDefault();
-                            if(handleVerify) handleVerify(e); else handleSignup(e);
-                        }}>
+                            if (handleVerify) {
+                                handleVerify(e);
+                            }
+                        }}
+                        >
                             <input
                                 name="verificationCode"
                                 type="text"
@@ -399,14 +402,9 @@ const AuthForm = ({
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                        <GoogleLogin
-                                            onSuccess={handleGoogleLogin}
-                                            onError={() => toast.error('Google verification failed')}
-                                            theme="filled_black"
-                                            shape="pill"
-                                            size="large"
-                                            text={isSignup ? "signup_with" : "signin_with"}
-                                            width={320}
+                                        <GoogleAuthButton
+                                            handleGoogleLogin={handleGoogleLogin}
+                                            isSignup={isSignup}
                                         />
                                     </div>
 

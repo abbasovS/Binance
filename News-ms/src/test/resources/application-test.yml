@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:newsms;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  liquibase:
+    enabled: false
+
+cryptopanic:
+  api:
+    url: https://cryptopanic.com/api/developer/v2/posts/
+    token: test-token
+    macro-rate: 3600000
+    general-rate: 3600000
+
+services:
+  price-ms:
+    url: http://localhost:8083
+
+internal:
+  api:
+    key: test-internal-key

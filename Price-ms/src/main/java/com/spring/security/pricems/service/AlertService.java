@@ -24,6 +24,10 @@ public class AlertService {
 
     public void createAlert(AlertRequest request, String userEmail) {
         String symbol = request.getSymbol().trim().toUpperCase();
+        String chatId = request.getChatId() == null ? "" : request.getChatId().trim();
+        if (chatId.isBlank()) {
+            throw new CryptoException("Chat ID boş ola bilməz.");
+        }
         Double currentMarketPrice = priceService.getRealtimePrice(symbol);
 
         if (currentMarketPrice == null) {
@@ -38,7 +42,7 @@ public class AlertService {
                 .symbol(symbol)
                 .targetPrice(request.getTargetPrice())
                 .userEmail(userEmail)
-                .chatId(request.getChatId().trim())
+                .chatId(chatId)
                 .side(side)
                 .isTriggered(false)
                 .build();

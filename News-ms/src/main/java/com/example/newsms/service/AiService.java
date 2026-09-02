@@ -47,6 +47,11 @@ public class AiService {
     }
 
     private AiAnalysisResponse callRealAi(String title) throws Exception {
+        if (openAiApiUrl == null || openAiApiUrl.isBlank()) {
+            log.warn("AI API URL boşdur. Fallback istifadə olunur.");
+            return fallbackResponse(title);
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(openAiApiKey);
@@ -84,7 +89,17 @@ public class AiService {
         ResponseEntity<String> response = restTemplate.postForEntity(openAiApiUrl, request, String.class);
 
         JsonNode rootNode = objectMapper.readTree(response.getBody());
-        String content = rootNode.path("choices").get(0).path("message").path("content").asText();
+        JsonNode choices = rootNode.path("choices");
+        if (!choices.isArray() || choices.isEmpty()) {
+            log.warn("AI response choices boşdur. Fallback istifadə olunur.");
+            return fallbackResponse(title);
+        }
+
+        String content = choices.get(0).path("message").path("content").asText("");
+        if (content.isBlank()) {
+            log.warn("AI response content boşdur. Fallback istifadə olunur.");
+            return fallbackResponse(title);
+        }
 
         int startIndex = content.indexOf('{');
         int endIndex = content.lastIndexOf('}');
@@ -144,6 +159,12 @@ public class AiService {
     }
 
     private List<AiAnalysisResponse> callRealAiBatch(List<String> titles) throws Exception {
+        if (openAiApiUrl == null || openAiApiUrl.isBlank()) {
+            return titles.stream()
+                    .map(this::fallbackResponse)
+                    .collect(Collectors.toList());
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(openAiApiKey);
@@ -180,8 +201,19 @@ public class AiService {
                 openAiApiUrl, request, String.class);
 
         JsonNode rootNode = objectMapper.readTree(response.getBody());
-        String content = rootNode.path("choices").get(0)
-                .path("message").path("content").asText();
+        JsonNode choices = rootNode.path("choices");
+        if (!choices.isArray() || choices.isEmpty()) {
+            return titles.stream()
+                    .map(this::fallbackResponse)
+                    .collect(Collectors.toList());
+        }
+
+        String content = choices.get(0).path("message").path("content").asText("");
+        if (content.isBlank()) {
+            return titles.stream()
+                    .map(this::fallbackResponse)
+                    .collect(Collectors.toList());
+        }
 
         // DÜZƏLİŞ 2: Batch (Array) JSON məlumatları üçün [...] mötərizələrinin kəsilməsi
         int startIndex = content.indexOf('[');

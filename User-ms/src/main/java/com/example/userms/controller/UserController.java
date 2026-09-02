@@ -3,15 +3,17 @@ package com.example.userms.controller;
 import com.example.userms.dto.UserRegistrationDto;
 import com.example.userms.dto.request.GoogleLoginRequest;
 import com.example.userms.dto.request.LoginRequest;
-import com.example.userms.dto.request.RefreshTokenRequest;
 import com.example.userms.dto.request.UserUpdateRequest;
 import com.example.userms.dto.request.VerifyRequest;
 import com.example.userms.dto.response.AuthResponse;
 import com.example.userms.dto.response.TelegramConnectInitResponse;
 import com.example.userms.dto.response.TelegramStatusResponse;
 import com.example.userms.dto.response.UserProfileResponse;
+import com.example.userms.service.RefreshTokenCookieService;
 import com.example.userms.service.SystemStateService;
 import com.example.userms.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,7 @@ public class UserController {
 
     private final UserService userService;
     private final SystemStateService systemStateService;
+    private final RefreshTokenCookieService refreshTokenCookieService;
 
     @PostMapping("/signup")
     public ResponseEntity<Void> signup(@RequestBody @Valid UserRegistrationDto dto) {
@@ -46,18 +49,53 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
-        return ResponseEntity.ok(userService.login(loginRequest.getEmail(), loginRequest.getPassword()));
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody @Valid LoginRequest loginRequest,
+            HttpServletResponse response
+    ) {
+        var authResponse = userService.login(loginRequest.getEmail(), loginRequest.getPassword());
+
+        if (authResponse == null || authResponse.getRefreshToken() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        refreshTokenCookieService.addRefreshTokenCookie(response, authResponse.getRefreshToken());
+
+        return ResponseEntity.ok(
+                AuthResponse.builder()
+                        .accessToken(authResponse.getAccessToken())
+                        .build()
+        );
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@RequestBody @Valid RefreshTokenRequest request) {
-        return ResponseEntity.ok(userService.refreshToken(request.getRefreshToken()));
+    public ResponseEntity<AuthResponse> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String refreshToken = refreshTokenCookieService.extractRefreshToken(request);
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.status(401).build();
+        }
+        var authResponse = userService.refreshToken(refreshToken);
+        refreshTokenCookieService.addRefreshTokenCookie(response, authResponse.getRefreshToken());
+        return ResponseEntity.ok(
+                AuthResponse.builder()
+                        .accessToken(authResponse.getAccessToken())
+                        .build()
+        );
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetails currentUser) {
-        userService.logout(currentUser.getUsername());
+    public ResponseEntity<Void> logout(
+            @AuthenticationPrincipal UserDetails currentUser,
+            HttpServletResponse response
+    ) {
+        if (currentUser != null) {
+            userService.logout(currentUser.getUsername());
+        }
+
+        refreshTokenCookieService.clearRefreshTokenCookie(response);
         return ResponseEntity.ok().build();
     }
 
@@ -117,7 +155,21 @@ public class UserController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<AuthResponse> googleLogin(@RequestBody @Valid GoogleLoginRequest request) {
-        return ResponseEntity.ok(userService.googleLogin(request));
+    public ResponseEntity<AuthResponse> googleLogin(
+            @RequestBody @Valid GoogleLoginRequest request,
+            HttpServletResponse response
+    ) {
+        var authResponse = userService.googleLogin(request);
+
+        if (authResponse == null || authResponse.getRefreshToken() == null) {
+            return ResponseEntity.status(401).build();
+        }
+        refreshTokenCookieService.addRefreshTokenCookie(response, authResponse.getRefreshToken());
+
+        return ResponseEntity.ok(
+                AuthResponse.builder()
+                        .accessToken(authResponse.getAccessToken())
+                        .build()
+        );
     }
 }

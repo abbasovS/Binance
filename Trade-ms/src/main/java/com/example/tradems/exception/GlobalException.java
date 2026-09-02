@@ -1,9 +1,10 @@
 package com.example.tradems.exception;
 
 import com.example.tradems.dto.response.ErrorResponse;
+import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,6 +13,16 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalException{
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex) {
+        return buildResponse(HttpStatus.valueOf(ex.getStatusCode().value()), ex.getReason());
+    }
+
+    @ExceptionHandler({JwtException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> handleUnauthorized(Exception ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
 
     @ExceptionHandler(TradingException.class)
     public ResponseEntity<ErrorResponse> handleTradingException(TradingException ex) {

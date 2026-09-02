@@ -68,11 +68,12 @@ public class UserEntity {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer tokenVersion = 0;
 
-    @Column
-    private String refreshToken;
+    @Column(name = "refresh_token_hash", length = 255)
+    private String refreshTokenHash;
 
     @Column
     private LocalDateTime refreshTokenExpiry;
